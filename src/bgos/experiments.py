@@ -130,6 +130,14 @@ def srm_check(n_control: int, n_treatment: int, expected_ratio: float = 0.5, thr
     return {"chi2": float(chi2), "p_value": float(p), "flag": bool(p < threshold)}
 
 
+LIFT_TOL = 1e-9  # IEEE guard: a lift of exactly 20% computes as 0.19999999999999996
+
+
+def is_sample_size_reached(n_control: int, n_treatment: int, n_required: int) -> bool:
+    """The SMALLER arm must meet the per-arm requirement (inclusive)."""
+    return min(n_control, n_treatment) >= n_required
+
+
 def decide(*, rel_lift: float, p_value: float, sample_size_reached: bool, srm_flag: bool, cfg: ExperimentConfig) -> str:
     """SHIP / ITERATE / INCONCLUSIVE.
 
@@ -141,7 +149,7 @@ def decide(*, rel_lift: float, p_value: float, sample_size_reached: bool, srm_fl
     """
     if srm_flag:
         return INCONCLUSIVE
-    if (p_value < cfg.alpha and not math.isnan(rel_lift) and rel_lift >= cfg.ship_min_relative_lift
+    if (p_value < cfg.alpha and not math.isnan(rel_lift) and rel_lift + LIFT_TOL >= cfg.ship_min_relative_lift
             and sample_size_reached):
         return SHIP
     if cfg.force_iterate_if_not_ship:
@@ -201,7 +209,7 @@ def analyze_experiment(outcomes: pd.DataFrame, cfg: ExperimentConfig) -> Experim
     ci = lift_confidence_intervals(x1, n1, x2, n2, cfg.alpha)
     target = min(0.99, p1 * (1 + cfg.mde_relative))
     n_req = sample_size_two_proportions(p1, target, cfg.alpha, cfg.power) if 0 < p1 < 1 else 10 ** 9
-    reached = min(n1, n2) >= n_req
+    reached = is_sample_size_reached(n1, n2, n_req)
     power = achieved_power(p1, p2, n1, n2, cfg.alpha)
     decision = decide(rel_lift=ci["rel_lift"], p_value=p, sample_size_reached=reached, srm_flag=srm["flag"], cfg=cfg)
     why = (f"rel lift {ci['rel_lift']:+.1%} (95% CI {ci['rel_ci_low']:+.1%} to {ci['rel_ci_high']:+.1%}), p={p:.4f}; "
