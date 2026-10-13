@@ -7,7 +7,7 @@
 Broker Growth OS: a tested, deterministic growth-operations prototype.
 
 - **Funnel as code** ([src/bgos/funnel.py](src/bgos/funnel.py)): 7 strictly nested stages with definitions, ICP rule, completeness checklist, record validation.
-- **Dirty synthetic data** ([src/bgos/generate.py](src/bgos/generate.py)): 1,500 true agencies plus 75 duplicates, about 11.8k touches, about 2.7k submissions over 2025-10-01 to 2026-09-30; 9 defect types injected and logged; effects planted for experiments A/B/C; referral = low-volume/high-quality, LinkedIn = high-volume/low-quality.
+- **Dirty synthetic data** ([src/bgos/generate.py](src/bgos/generate.py)): 1,500 true agencies plus 75 duplicates, about 11.6k touches, about 2.5k submissions over 2025-10-01 to 2026-09-30; 9 defect types injected and logged; effects planted for experiments A/B/C; referral = low-volume/high-quality, LinkedIn = high-volume/low-quality.
 - **Cleaning** ([src/bgos/clean.py](src/bgos/clean.py)): dedupe 75/75 with 0 false merges on the labeled set, source mapping, size normalization, quarantine, tiny-n suppression, idempotent, never reads the defect manifest.
 - **Scoring** ([src/bgos/scoring.py](src/bgos/scoring.py)): 0.30/0.25/0.20/0.15/0.10 Broker Fit Score, four tiers with explicit precedence, human-readable reasons.
 - **Metrics layer**: 13 SQL files in [sql/](sql/), each cross-checked against independent pandas.
@@ -43,23 +43,24 @@ Phase 10 verification: `.venv` deleted and recreated with `make setup`; `data/` 
 
 ## Known limitations
 
-- The funnel is deliberately generous (about 35% of raw leads reach a first submission) so Experiment A can be powered with 1,500 agencies; real baselines will be lower and need much larger samples.
-- Planted effects are plumbing tests. On seed 42 the A estimate (+27.3%) lies close to the planted +30%; across 8 seeds A reaches SHIP in 5, which is the honest power of this design.
+- The funnel is deliberately generous (about 32% of raw leads reach a first submission) so Experiment A can be powered with 1,500 agencies; real baselines will be lower and need much larger samples.
+- Planted effects are plumbing tests. After the audit fix the mean A lift over 40 seeds is +28% (planted +30%) and A reaches SHIP in 32 of 40; seed 42 is one draw.
 - The tier ordering check (Tier 1 > Tier 2 > Tier 3 first-submission rate) is circular by construction and only validates plumbing.
-- "Dormant" agencies include some that are merely between submissions, so Experiment C's control-arm return rate (about 20% in 45 days) is higher than a truly lapsed population would show.
-- Cohort repeat rates (about 52% / 67% / 75% at 30 / 60 / 90 days) and bind rates are generator choices, not benchmarks.
+- "Dormant" agencies include some that are merely between submissions, so Experiment C's control-arm return rate (about 16% in 45 days) is higher than a truly lapsed population would show.
+- Cohort repeat rates (about 54% / 68% / 77% at 30 / 60 / 90 days) and bind rates are generator choices, not benchmarks.
 - No seasonality, loss ratio, carrier capacity, or cost metrics; flat commission assumption; dedupe blocks on state.
 - Hedge-specific assumptions are unverified (see the "Assumptions to validate in the first 30 days" section of [STRATEGY_MEMO.md](STRATEGY_MEMO.md)).
 
-## Headline simulated results (seed 42)
+## Headline simulated results (seed 42; corrected by the audit, see [BUGS.md](BUGS.md))
 
-- Funnel: 1,500 leads, 1,112 ICP-qualified, 797 engaged, 521 first submissions, 492 quoted, 203 bound (13.5% of leads), 150 repeat.
-- Source quality: referral binds 23.0% of leads versus 8.4% for LinkedIn (2.7x), while LinkedIn supplies 32% of lead volume. Three tiny sources (n = 3, 4, 5) show 100% in the raw data and are suppressed.
-- Activation: 42% of engaged agencies submit a complete package within 14 days (the biggest controllable gap). Median time to quote: 35 hours overall, 21 hours for low-complexity versus 89 for high-complexity risks.
-- Tiers: 82 Tier 1, 610 Tier 2, 602 Tier 3, 206 Reactivation.
-- Experiment A (ICP-targeted outbound): 31.4% to 40.0%, relative lift +27.3% (95% CI +9.4% to +48.2%), p = 0.002, 612 per arm versus 407 required: **SHIP** (simulated).
-- Experiment B (submission-ready onboarding): +20.5% (95% CI +2.7% to +41.4%), p = 0.022, but 383 per arm versus 1,058 required: **ITERATE** (underpowered; the framework refuses to ship it).
-- Experiment C (reactivation): -26.7% (95% CI -63.9% to +49.0%), p = 0.39, 75 per arm versus 294 required: **INCONCLUSIVE** (planted null).
+- Funnel: 1,500 leads, 1,116 ICP-qualified, 795 engaged, 486 first submissions, 453 quoted, 209 bound (13.9% of leads), 160 repeat.
+- Source quality: on this draw partner binds the most leads (21.5%) and LinkedIn the fewest (8.0%); referral binds 18.6%, which is 2.3x LinkedIn, while LinkedIn supplies 32% of lead volume. The planted design makes referral the best source, but with only 113 referral leads one draw is noisy; the ordering is verified at large n in the test suite. Three tiny sources (n = 3, 4, 5) show 100% in the raw data and are suppressed.
+- Activation: 39% of engaged agencies submit a complete package within 14 days. Median time to quote: 34 hours overall, 20 hours for low-complexity versus 88 for high-complexity risks.
+- Tiers: 83 Tier 1, 610 Tier 2, 614 Tier 3, 193 Reactivation.
+- Experiment A (ICP-targeted outbound): 28.0% to 38.6%, relative lift +37.5% (95% CI +17.1% to +61.6%), p < 0.001, 612 per arm versus 484 required: **SHIP** (simulated). The planted effect is +30%; this draw overshoots it and the interval covers it.
+- Experiment B (submission-ready onboarding): +11.8% (95% CI -6.1% to +33.1%), p = 0.21, 375 per arm versus 1,174 required: **INCONCLUSIVE** (underpowered).
+- Experiment C (reactivation): +0.0% (95% CI -53.5% to +115.2%), p = 1.00, 69 per arm versus 394 required: **INCONCLUSIVE** (planted null).
+- These are one simulated draw. Across 40 seeds ([docs/seed_sweep.json](docs/seed_sweep.json), `make sweep`) the same design returns SHIP for A in 32, never SHIP for B, and a chance-significant result for C in 3 (running three experiments at once carries a multiple comparisons risk).
 
 ## What Jainam must do
 
