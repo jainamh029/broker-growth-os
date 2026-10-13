@@ -114,7 +114,7 @@ def dedupe_agencies(ag: pd.DataFrame, threshold: float | None = None) -> pd.Data
     sim: dict[str, float] = {}
     work = ag.assign(_core=ag["name"].map(core_name))
     for state, blk in work.groupby("state"):
-        if str(state).upper() == "UNK":  # state is the blocking key: unresolvable
+        if str(state).strip().lower() in MISSING_TOKENS:  # state is the blocking key: unresolvable (also guards raw blanks)
             continue
         rows = blk[["agency_id", "_core"]].to_numpy().tolist()
         for i in range(len(rows)):
