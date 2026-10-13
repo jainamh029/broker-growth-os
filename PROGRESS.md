@@ -31,3 +31,6 @@ Resume rule: read the last entry, start at the next phase.
 - Tests: tests/test_phase8_dashboard.py (16: AppTest renders all 9 views, banner, takeaways, headline numbers equal metrics layer, headless `streamlit run` health check ok); full suite 142 passed, 0 failed.
 - Visual check done in the browser pane (Monday Morning, Weekly Growth Review, Experiments); fixed truncated "Confidence" metric.
 - Cut: none.
+## Phase 9: Documentation and deliverables: GREEN (2026-10-13)
+- Tests: tests/test_phase9_docs.py (13: dictionary completeness, memo 410 words (<550), memo numbers traceable and equal regenerated, links+anchors resolve, README quickstart executed via make, determinism of `make all`, loom/deploy checks); full suite 155 passed, 0 failed.
+- Cut: none. FINAL_REPORT.md is a stub until Phase 10.

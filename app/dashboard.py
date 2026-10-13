@@ -35,7 +35,12 @@ st.markdown(f"<div class='banner'><b>{BANNER}</b></div>", unsafe_allow_html=True
 def mart(name: str) -> pd.DataFrame:
     path = config.get_paths().marts / f"{name}.csv"
     if not path.exists():
-        st.error(f"Missing data mart `{name}`. Run `make all` first (synthetic data is generated locally).")
+        # First run (e.g. on Streamlit Community Cloud): generate the synthetic data, then read the marts.
+        with st.spinner("First run: generating synthetic data (about a minute)..."):
+            from bgos.cli import run_pipeline
+            run_pipeline(None, docs=False)
+    if not path.exists():
+        st.error(f"Missing data mart `{name}`. Run `make all` first.")
         st.stop()
     return pd.read_csv(path)
 

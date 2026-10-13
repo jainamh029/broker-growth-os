@@ -5,9 +5,24 @@ import argparse
 import sys
 
 
+def run_pipeline(root=None, docs: bool = True) -> None:
+    """Whole synthetic pipeline (used by `make all` equivalents and by the dashboard's first-run bootstrap)."""
+    from . import clean, experiments, generate, metrics, scoring
+    from .ai import demo
+    generate.generate(root)
+    clean.run_clean(root)
+    scoring.run_score(root)
+    metrics.run_all(root)
+    experiments.run_experiments(root)
+    demo.run_demo(root)
+    if docs:
+        from . import docs as _docs
+        _docs.run_docs(root)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="bgos", description="Broker Growth OS (all data is SYNTHETIC)")
-    ap.add_argument("command", choices=["data", "clean", "score", "metrics", "experiments", "ai-demo", "docs"])
+    ap.add_argument("command", choices=["data", "clean", "score", "metrics", "experiments", "ai-demo", "docs", "all"])
     ap.add_argument("--root", default=None, help="output root (default: repo, or $BGOS_ROOT)")
     a = ap.parse_args(argv)
     if a.command == "data":
@@ -36,6 +51,9 @@ def main(argv: list[str] | None = None) -> int:
         from .ai import demo
         demo.run_demo(a.root)
         print("wrote outputs/ai_demo.md")
+    elif a.command == "all":
+        run_pipeline(a.root)
+        print("pipeline complete (SYNTHETIC data)")
     elif a.command == "docs":
         from . import docs
         docs.run_docs(a.root)
