@@ -29,6 +29,6 @@ Independent audit of Broker Growth OS. Severity: Sev-1 wrong number / crash on a
 - `test_source_quality_shape` / `test_source_quality`: pinned to one noisy draw (B-10).
 - Dashboard "no hard-coded numbers" test only greps for currency/thousands literals; it cannot catch a typed `42`. Left as is (Sev-3).
 
-## Mutation results (38 mutants, `/tmp` scratch copies)
+## Mutation results (39 original mutants plus 5 added after the fixes; scratch copies)
 
-Original suite: 6 survived (M03b, M07, M14, M15, M19, M31). After the new tests all 38 are killed. M13 (`>=` to `>` on the 20% rule) became an equivalent mutant once the float tolerance was added (the tolerance makes exact-boundary equality untestable); the pre-tolerance mutant was killed by the 20% boundary test.
+Original suite: 6 survived (M03b, M07, M14, M15, M19, M31). After the new tests every one of the 18 mutants re-run against the final suite is killed (the six survivors, four indirectly-caught ones, the five new ones and others); the remaining mutants were killed by the original suite, which the final suite contains apart from the two B-10 assertions on referral ranking. M13 (`>=` to `>` on the 20% rule) became an equivalent mutant once the float tolerance was added (the tolerance makes exact-boundary equality untestable); the pre-tolerance mutant was killed by the 20% boundary test.

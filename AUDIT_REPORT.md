@@ -4,9 +4,9 @@ Independent audit and release of Broker Growth OS. All data in the project is sy
 
 ## Verdict
 
-The builder's headline claims about test counts and structure were accurate, but two of the reported results were wrong because of generator and test defects: the planted Experiment A effect was weaker than claimed, and several tests could not detect real bugs. Everything below was reproduced, fixed at the root cause, and re-verified. Before the fixes, 155 tests were green and meant less than they appeared to: 6 of 38 deliberate bugs survived them.
+The builder's headline claims about test counts and structure were accurate, but two of the reported results were wrong because of generator and test defects: the planted Experiment A effect was weaker than claimed, and several tests could not detect real bugs. Everything below was reproduced, fixed at the root cause, and re-verified. Before the fixes, 155 tests were green and meant less than they appeared to: 6 of 39 deliberate bugs survived them.
 
-## Bugs found: 16 (Sev-1: 2, Sev-2: 9, Sev-3: 5; 13 fixed, 3 Sev-3 left open)
+## Bugs found: 16 (Sev-1: 2, Sev-2: 8, Sev-3: 6; 13 fixed, 3 Sev-3 left open)
 
 Full table with root causes, commits and regression tests: [BUGS.md](BUGS.md).
 
