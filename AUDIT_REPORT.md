@@ -50,7 +50,7 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): all gates PASS except the opti
 
 ## GitHub
 
-See the bottom of this file (filled in after Stage D).
+https://github.com/jainamh029/broker-growth-os (public, `main`, topics added). Pushed with a normal push after all gates passed; no force-push. A fresh clone from GitHub passed `make all` and 190 tests, and the GitHub Actions workflow (`ci.yml`, Python 3.12) completed with success. The repository was created under the account that `gh` was already authenticated as; no credentials were searched for.
 
 ## What Jainam must still do
 
