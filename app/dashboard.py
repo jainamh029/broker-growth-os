@@ -206,7 +206,7 @@ def view_activation():
     cols = windows[choice]
     c = coh[coh.cohort != "ALL"].set_index("cohort")[cols]
     heat = go.Figure(go.Heatmap(z=c.values, x=[x.replace("retention_", "") + " days" for x in cols], y=c.index,
-                                colorscale=[[0, "#eef6f4"], [0.5, MINT], [1, theme.BLUE_DARK]],
+                                colorscale=[[0, "#eef2f7"], [0.5, MINT], [1, theme.BLUE_DARK]],
                                 text=[[ins.pct(v, 0) for v in row] for row in c.values], texttemplate="%{text}", zmin=0, zmax=1, showscale=False))
     heat.update_yaxes(autorange="reversed", title="First-submission month")
     st.plotly_chart(style(heat, 420), width="stretch")

@@ -47,12 +47,12 @@ CSS = """
 *{box-sizing:border-box} html{scroll-behavior:smooth;scroll-padding-top:120px}
 body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);margin:0;background:linear-gradient(160deg,var(--bg),__BG2__) fixed;line-height:1.55}
 .skip{position:absolute;left:-999px} .skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:30}
-header.top{background:linear-gradient(120deg,var(--dark),var(--blue) 55%,var(--green));color:#fff}
+header.top{background:linear-gradient(120deg,#0b1b33,#10294d 60%,#134e4a);color:#fff}
 header.top .in{max-width:1180px;margin:0 auto;padding:18px 20px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 header.top h1{margin:0;font-size:1.5rem;letter-spacing:-.01em} header.top p{margin:2px 0 0;color:#e6f4ee;font-size:.92rem}
 .links a{color:#fff;text-decoration:none;border:1px solid #ffffff88;border-radius:10px;padding:9px 14px;margin-left:8px;font-size:.9rem;display:inline-block;min-height:44px;line-height:24px}
 .links a:hover{background:#ffffff26}
-nav{position:sticky;top:0;z-index:10;background:#e7f1efee;backdrop-filter:blur(8px);border-bottom:1px solid var(--grid)}
+nav{position:sticky;top:0;z-index:10;background:#ffffffee;backdrop-filter:blur(8px);border-bottom:1px solid var(--grid)}
 nav .in{max-width:1180px;margin:0 auto;padding:0 12px;display:flex;gap:2px;overflow-x:auto}
 nav a{padding:13px 12px;color:var(--muted);text-decoration:none;font-size:.92rem;white-space:nowrap;border-bottom:3px solid transparent;min-height:44px}
 nav a.active,nav a:hover{color:var(--green);border-bottom-color:var(--green)}
@@ -60,11 +60,11 @@ main{max-width:1180px;margin:0 auto;padding:14px 20px 50px}
 .banner{background:#fff7e0;border:1px solid #e8c766;color:#5b4500;padding:10px 14px;border-radius:10px;margin:6px 0 14px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:10px 0 14px}
 .kpi{background:var(--card);border:1px solid var(--grid);border-radius:14px;padding:12px 14px;transition:transform .18s,box-shadow .18s,border-color .18s}
-.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 22px #0b2a3c1f;border-color:var(--green)}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 22px #0f172a1f;border-color:var(--green)}
 .kpi .v{font-size:1.65rem;font-weight:700;color:var(--dark)} .kpi .l{font-size:.85rem;color:var(--muted)} .kpi .d{font-size:.8rem;color:var(--green)}
 h2{color:var(--dark);margin:6px 0 4px} h3{color:var(--dark);margin:20px 0 6px}
 .take{border-left:4px solid var(--green);background:var(--surface);border-radius:0 10px 10px 0;padding:8px 14px;margin:6px 0 16px}
-.card{border:1px solid var(--grid);border-radius:14px;padding:8px 18px 14px;background:var(--card);box-shadow:0 1px 3px #0b2a3c14;margin:10px 0}
+.card{border:1px solid var(--grid);border-radius:14px;padding:8px 18px 14px;background:var(--card);box-shadow:0 1px 3px #0f172a14;margin:10px 0}
 .ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0;font-size:.92rem}
 .ctl label{display:flex;gap:8px;align-items:center;color:var(--ink)} select,input[type=search]{min-height:40px;border-radius:8px;border:1px solid var(--grid);padding:0 10px;font:inherit;background:var(--card)}
 input[type=range]{accent-color:var(--green);min-height:32px} input[type=checkbox]{accent-color:var(--green);width:18px;height:18px}
@@ -88,7 +88,7 @@ footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;colo
 
 JS = r"""
 const D = JSON.parse(document.getElementById('data').textContent);
-const C = {blue:'#1456a0', green:'#0f7a55', teal:'#0e7490', sky:'#7fb2e5', mint:'#8fd1b3', amber:'#b45f06', ink:'#0b2a3c', muted:'#5b7083', grid:'#d5e3df', dark:'#0b3a6b'};
+const C = {blue:'#2563eb', green:'#0f766e', teal:'#0891b2', sky:'#93c5fd', mint:'#99d9cf', amber:'#b45309', ink:'#0f172a', muted:'#475569', grid:'#e2e8f0', dark:'#0b1b33'};
 const $ = (s, r) => (r || document).querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const pct = (x, d) => (x == null || isNaN(x)) ? 'n/a' : (x * 100).toFixed(d == null ? 1 : d) + '%';
@@ -197,7 +197,7 @@ V.activation = function () {
   const c = D.cohorts.filter(r => r.cohort !== 'ALL');
   const draw = () => { const w = $('#rw').value, ks = w === 'all' ? ['30', '60', '90'] : [w];
     plot('fig-ret', [{type: 'heatmap', x: ks.map(k => k + ' days'), y: c.map(r => r.cohort), z: c.map(r => ks.map(k => r['retention_' + k])), zmin: 0, zmax: 1, showscale: false,
-      colorscale: [[0, '#eef6f4'], [0.5, C.mint], [1, C.dark]], text: c.map(r => ks.map(k => pct(r['retention_' + k], 0))), texttemplate: '%{text}'}], lay(420, {yaxis: {autorange: 'reversed', title: 'First-submission month'}})); };
+      colorscale: [[0, '#eef2f7'], [0.5, C.sky], [1, C.dark]], text: c.map(r => ks.map(k => pct(r['retention_' + k], 0))), texttemplate: '%{text}'}], lay(420, {yaxis: {autorange: 'reversed', title: 'First-submission month'}})); };
   $('#rw').addEventListener('input', draw); draw();
 };
 
