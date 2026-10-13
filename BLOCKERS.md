@@ -1,6 +1,6 @@
 # BLOCKERS
 
-No blockers. No phase needed more than three fix-loop attempts (limit was 6), nothing was cut, and no test was skipped, xfailed, deleted or weakened.
+No blockers. No phase reached the 6-attempt fix-loop limit, nothing was cut, and no test was skipped, xfailed, deleted or weakened.
 
 Test changes made during fix loops (all logged in [DECISIONS.md](DECISIONS.md)):
 
