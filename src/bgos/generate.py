@@ -112,17 +112,7 @@ def _rand_time(rng, day: datetime) -> datetime:
 # ----------------------------------------------------------------------------------------------
 # names
 # ----------------------------------------------------------------------------------------------
-STOPWORDS = {"the", "and", "&", "insurance", "ins", "agency", "agcy", "group", "grp", "risk", "advisors",
-             "advisor", "services", "svcs", "brokers", "brokerage", "brkrs", "associates", "assoc",
-             "partners", "prtnrs", "llc", "inc", "co", "company", "corp"}
-
-
-def core_name(name: str) -> str:
-    """Normalized core used for fuzzy matching (shared with clean.py via import)."""
-    import re
-    toks = re.sub(r"[^a-z0-9& ]", " ", name.lower()).split()
-    toks = [t for t in toks if t not in STOPWORDS and t != "&"]
-    return " ".join(toks)
+from .clean import STOPWORDS, core_name  # noqa: E402,F401
 
 
 def _similar(a: str, b: str) -> float:
@@ -532,7 +522,7 @@ def generate(root: Path | str | None = None, seed: int | None = None, n_agencies
     clean_pool = np.array([i for i in range(m) if raw_ag.agency_id[i] not in dup_involved])
     pick = lambda frac, pool: sorted(rng.choice(pool, int(round(frac * m)), replace=False).tolist())
     miss_state_idx = pick(config.MISSING_STATE_RATE, clean_pool)
-    left = np.array(sorted(set(range(m)) - set(miss_state_idx)))
+    left = np.array(sorted(set(clean_pool.tolist()) - set(miss_state_idx)))
     miss_size_idx = pick(config.MISSING_SIZE_RATE, left)
 
     out = pd.DataFrame({

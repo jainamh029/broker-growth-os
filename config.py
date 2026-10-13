@@ -121,3 +121,6 @@ class Paths:
 def get_paths(root: Path | str | None = None) -> Paths:
     """Resolve the output root. BGOS_ROOT env var lets tests/scripts redirect all I/O."""
     return Paths(Path(root or os.environ.get("BGOS_ROOT") or ROOT))
+
+# --- cleaning --------------------------------------------------------------
+DEDUPE_THRESHOLD = 0.85  # difflib ratio on normalized agency-name cores, within the same state

@@ -11,3 +11,6 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 2: Dirty synthetic data: GREEN (2026-10-13)
 - Tests: tests/test_phase2_generate.py (+conftest session fixture); full suite 40 passed, 0 failed.
 - Cut: none.
+## Phase 3: Cleaning and standardization: GREEN (2026-10-13)
+- Tests: tests/test_phase3_clean.py; full suite 55 passed, 0 failed.
+- Cut: none. Dedupe recall 75/75, 0 false merges on labeled set.
