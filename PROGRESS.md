@@ -27,3 +27,7 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 7: AI operating layer: GREEN (2026-10-13)
 - Tests: tests/test_phase7_ai.py (24); full suite 126 passed, 0 failed. One fix loop iteration: mock parser ignored trailing negation ("loss runs not yet available"); fixed in the parser, no test changed.
 - Cut: none. Real-LLM provider is tested only with an injected fake client (no network by design).
+## Phase 8: Dashboard: GREEN (2026-10-13)
+- Tests: tests/test_phase8_dashboard.py (16: AppTest renders all 9 views, banner, takeaways, headline numbers equal metrics layer, headless `streamlit run` health check ok); full suite 142 passed, 0 failed.
+- Visual check done in the browser pane (Monday Morning, Weekly Growth Review, Experiments); fixed truncated "Confidence" metric.
+- Cut: none.
