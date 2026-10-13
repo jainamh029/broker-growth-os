@@ -8,3 +8,6 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 1: Funnel and schema: GREEN (2026-10-13)
 - Tests: tests/test_phase1_funnel_schema.py; full suite 30 passed, 0 failed.
 - Cut: none.
+## Phase 2: Dirty synthetic data: GREEN (2026-10-13)
+- Tests: tests/test_phase2_generate.py (+conftest session fixture); full suite 40 passed, 0 failed.
+- Cut: none.

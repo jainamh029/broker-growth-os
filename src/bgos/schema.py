@@ -45,7 +45,7 @@ TABLES: dict[str, dict] = {
             ("channel", "TEXT", "email, call, linkedin, meeting, event.", ""),
             ("touch_type", "TEXT", "email_sent, email_open, email_click, reply, call_attempt, call_connected, "
                                     "meeting_booked, meeting_held, linkedin_connect_sent, linkedin_connect_accepted, "
-                                    "linkedin_message_sent, linkedin_reply.", ""),
+                                    "linkedin_message_sent, linkedin_reply, inbound_form.", ""),
             ("direction", "TEXT", "outbound (we reached out) or inbound (they did).", ""),
             ("owner", "TEXT", "Rep who owned the touch.", ""),
         ],
