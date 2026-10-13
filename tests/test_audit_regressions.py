@@ -315,15 +315,62 @@ def test_bootstrap_runs_pipeline_once_under_concurrency(tmp_path, monkeypatch):
     assert not (tmp_path / "data" / ".bootstrap.lock").exists()
 
 
-# ---- GitHub Pages showcase ----------------------------------------------------------------------------------------
-def test_committed_pages_site_matches_regenerated_and_is_labelled(gen_result, marts):
+# ---- GitHub Pages: home = dashboard only, memo on its own page ---------------------------------------------------
+def _pages(gen_result, marts):
     from bgos import docs, experiments
     experiments.run_experiments(gen_result["root"])
     docs.run_docs(gen_result["root"])
-    fresh = (gen_result["root"] / "docs" / "index.html").read_text()
-    assert (ROOT / "docs" / "index.html").read_text() == fresh  # cannot drift from the outputs
-    assert docs.DISCLAIMER in fresh and "simulated" in fresh.lower() and "multiple comparisons" in fresh
+    r = gen_result["root"] / "docs"
+    return (r / "index.html").read_text(), (r / "memo.html").read_text()
+
+
+def test_committed_pages_match_regenerated_and_are_labelled(gen_result, marts):
+    from bgos import docs
+    home, memo = _pages(gen_result, marts)
+    assert (ROOT / "docs" / "index.html").read_text() == home and (ROOT / "docs" / "memo.html").read_text() == memo
+    for page in (home, memo):
+        assert docs.DISCLAIMER in page
+    assert "simulated" in home.lower() and "multiple comparisons" in home
     facts = docs.memo_facts(gen_result["root"])
-    for k in ("raw", "icp", "bound", "a_lift"):
-        assert facts[k] in fresh
-    assert "fig-funnel" in fresh and "fig-exp" in fresh
+    for k in ("raw", "icp", "bound"):
+        assert facts[k] in home
+    assert facts["a_lift"] in home  # in the Experiments takeaway data
+
+
+def test_home_page_has_dashboard_only_and_memo_is_a_separate_page(gen_result, marts):
+    home, memo = _pages(gen_result, marts)
+    for banned in ("Growth thesis", "Assumptions to validate", "90-day plan", "Run the live dashboard"):
+        assert banned not in home, banned
+    assert 'href="memo.html"' in home and 'href="index.html"' in memo
+    for needed in ("Growth thesis", "Assumptions to validate in the first 30 days", "90-day plan"):
+        assert needed in memo
+    for view in ("monday", "weekly", "sources", "ttq", "activation", "dormant", "pipeline", "ranked", "experiments"):
+        assert f"V.{view} = function" in home
+    assert "fig-funnel" in home and "fig-exp" in home
+
+
+def test_embedded_dashboard_data_matches_outputs(gen_result, marts):
+    import re
+    home, _ = _pages(gen_result, marts)
+    data = json.loads(re.search(r'<script id="data" type="application/json">(.*?)</script>', home, re.S).group(1))
+    m = lambda n: pd.read_csv(gen_result["root"] / "data" / "marts" / f"{n}.csv")
+    assert [r["agencies"] for r in data["funnel"]] == m("funnel_counts").sort_values("stage_order").agencies.tolist()
+    assert len(data["ranked"]) == len(m("ranked_accounts")) and len(data["dormant"]) == len(m("dormant_reactivation"))
+    assert data["topline"]["dormant_agencies"] == m("topline").iloc[0].dormant_agencies
+    assert [e["decision"] for e in data["experiments"]] == m("experiment_results").decision.tolist()
+    assert data["ranked"][0]["name"] == m("ranked_accounts").iloc[0]["name"]
+
+
+def test_dashboard_javascript_parses(gen_result, marts, tmp_path):
+    import re
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not installed")  # environment capability, not a weakened assertion
+    home, _ = _pages(gen_result, marts)
+    js = re.findall(r"<script>(.*?)</script>", home, re.S)[-1]
+    f = tmp_path / "dash.js"
+    f.write_text(js)
+    r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
