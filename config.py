@@ -124,3 +124,8 @@ def get_paths(root: Path | str | None = None) -> Paths:
 
 # --- cleaning --------------------------------------------------------------
 DEDUPE_THRESHOLD = 0.85  # difflib ratio on normalized agency-name cores, within the same state
+
+# --- scoring detail --------------------------------------------------------
+HARD_TO_PLACE_LINES = ("Umbrella/Excess", "Professional Liability", "Inland Marine", "Cyber")
+HARD_LINES_CAP = 3
+ES_APPETITE_SCORES = {"high": 1.0, "medium": 0.6, "low": 0.25, "none": 0.0}

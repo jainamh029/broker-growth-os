@@ -134,7 +134,7 @@ def derive_stage_events(agencies: pd.DataFrame, touches: pd.DataFrame,
     quo_at = first_quote.reindex(ag.index).where(sub_at.notna())
     bnd_at = first_bind.reindex(ag.index).where(quo_at.notna())
 
-    rep = sc.merge(first_bind.rename("first_bind_at"), left_on="agency_id", right_index=True)
+    rep = sc.assign(first_bind_at=first_bind.reindex(sc["agency_id"]).to_numpy())
     rep = rep[(rep["submitted_at"] > rep["first_bind_at"]) &
               (rep["submitted_at"] <= rep["first_bind_at"] + pd.Timedelta(days=config.REPEAT_WINDOW_DAYS))]
     first_rep = rep.groupby("agency_id")["submitted_at"].min()

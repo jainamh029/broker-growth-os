@@ -14,3 +14,6 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 3: Cleaning and standardization: GREEN (2026-10-13)
 - Tests: tests/test_phase3_clean.py; full suite 55 passed, 0 failed.
 - Cut: none. Dedupe recall 75/75, 0 false merges on labeled set.
+## Phase 4: Transparent scoring and segmentation: GREEN (2026-10-13)
+- Tests: tests/test_phase4_scoring.py; full suite 69 passed, 0 failed.
+- Cut: none. Tier ordering check (T1 > T2 > T3 first-submission rate) passes; it validates plumbing only because the generator makes conversion depend on fit.
