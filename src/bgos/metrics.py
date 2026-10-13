@@ -69,7 +69,7 @@ def run_metric(name: str, conn: sqlite3.Connection, **overrides) -> pd.DataFrame
 
 def connect(root: Path | str | None = None) -> sqlite3.Connection:
     paths = config.get_paths(root)
-    conn = sqlite3.connect(f"file:{paths.db}?mode=ro", uri=True)
+    conn = sqlite3.connect(paths.db.resolve().as_uri() + "?mode=ro", uri=True)  # as_uri() percent-encodes #, %, ?
     return conn
 
 
