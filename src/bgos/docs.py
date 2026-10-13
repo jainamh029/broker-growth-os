@@ -118,7 +118,7 @@ def build_memo(facts: dict[str, str]) -> str:
 1. Activation: only {facts['act_rate']} of engaged agencies send a complete submission within 14 days. Each +10 points adds about {facts['act_gain']} first submissions on this book.
 2. Source mix: {facts['worst_src']} supplies {facts['worst_share']} of leads but binds {facts['worst_rate']} of them, versus {facts['best_rate']} for {facts['best_src']} ({facts['src_ratio']}). Moving 10% of lead volume to {facts['best_src']}-quality sources adds roughly {facts['src_gain']} bound agencies (back-of-envelope; assumes that channel scales).
 
-Watch metric: median time to quote is {facts['ttq']} hours; protect it while volume grows, because speed is what brokers remember.
+Watch metric: median time to quote is {facts['ttq']} hours; protect it while volume grows.
 
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.

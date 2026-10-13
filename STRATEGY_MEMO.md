@@ -12,7 +12,7 @@
 1. Activation: only 39% of engaged agencies send a complete submission within 14 days. Each +10 points adds about 80 first submissions on this book.
 2. Source mix: linkedin supplies 32% of leads but binds 8.0% of them, versus 21.5% for partner (2.7x). Moving 10% of lead volume to partner-quality sources adds roughly 20 bound agencies (back-of-envelope; assumes that channel scales).
 
-Watch metric: median time to quote is 34 hours; protect it while volume grows, because speed is what brokers remember.
+Watch metric: median time to quote is 34 hours; protect it while volume grows.
 
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.

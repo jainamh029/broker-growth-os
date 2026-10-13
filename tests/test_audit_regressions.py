@@ -205,7 +205,7 @@ def test_dashboard_extreme_filters_do_not_crash(gen_result, marts, monkeypatch):
     for df in at.dataframe:
         assert not df.value.isna().any().any() if len(df.value) else True
     at.sidebar.radio[0].set_value("Time-to-Quote").run()
-    at.radio[1].set_value("Each agency's first submission").run()
+    at.radio[0].set_value("first_submissions").run()  # radio[0] = Scope, radio[1] = sidebar View
     assert not at.exception
 
 
@@ -244,3 +244,36 @@ def test_final_report_headline_numbers_match_outputs(gen_result, marts):
     want += [f"{ranked[t_]} {t_}" for t_ in ("Tier 1", "Tier 2", "Tier 3", "Reactivation")]
     missing = [w for w in want if w not in txt]
     assert not missing, f"FINAL_REPORT.md numbers drifted from outputs: {missing}"
+
+
+# ---- B-05: planted Experiment A effect was diluted by a probability cap -------------------------------------------
+def test_planted_lift_is_exactly_30pct_for_every_baseline_probability():
+    for p in np.linspace(0.01, 0.999, 120):
+        c, t = generate.submit_probability(p, False), generate.submit_probability(p, True)
+        assert t / c == pytest.approx(1 + generate.A_TRUE_LIFT, rel=1e-12), p
+        assert t <= 0.97 + 1e-12 and 0 < c <= p + 1e-12
+
+
+# ---- B-09: dedupe must never merge agencies whose state is missing, even when handed RAW (un-normalized) rows ----
+@pytest.mark.parametrize("blank", ["", "N/A", "unknown", "UNK", "  "])
+def test_dedupe_never_merges_identical_names_with_missing_state(blank):
+    ag = pd.DataFrame({"agency_id": ["A", "B"], "name": ["Ingram Insurance Agency", "Ingram Insurance Agency"],
+                       "state": [blank, blank], "first_touch_date": ["2025-11-01", "2025-12-01"]})
+    d = clean.dedupe_agencies(ag)
+    assert d.survivor_id.tolist() == ["A", "B"]
+
+
+# ---- B-10: planted source-quality ordering is a population property; verify it where noise is small ----------------
+@pytest.mark.parametrize("seed", [1, 2])
+def test_planted_source_quality_ordering_holds_at_large_n(seed):
+    tr = generate.generate(root="/nonexistent-unused", seed=seed, n_agencies=6000, write=False)["truth"]
+    ag = tr["agencies"].assign(is_icp=lambda d: d.is_icp.astype(int))
+    ev = funnel.derive_stage_events(ag, tr["touches"], tr["submissions"])
+    bound = set(ev[ev.stage == "bound"].agency_id)
+    big = ag[ag.lead_source.isin(generate.SOURCE_WEIGHTS)]
+    rate = big.assign(b=big.agency_id.isin(bound)).groupby("lead_source").b.mean()
+    vol = big.lead_source.value_counts()
+    assert not Path("/nonexistent-unused").exists()  # write=False has no filesystem side effects
+    assert rate.idxmax() == "referral" and rate.idxmin() == "linkedin"
+    assert vol.idxmax() == "linkedin" and vol.idxmin() == "referral"
+    assert rate["referral"] > 1.2 * rate["partner"]
