@@ -2,6 +2,7 @@
 
 All data is SYNTHETIC. The banner below must stay on every view.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -85,6 +86,7 @@ def view_monday():
     fig.update_yaxes(autorange="reversed")
     st.plotly_chart(style(fig, 360), width="stretch")
     takeaway(ins.takeaway_funnel(f))
+    st.caption("The synthetic funnel is deliberately generous so Experiment A can be statistically powered; real conversion rates will be lower.")
     r = mart("ranked_accounts")
     new_biz = r[r.tier.isin(["Tier 1", "Tier 2"]) & r.action.isin(["outbound", "onboarding"])]
     top = new_biz.sort_values(["tier", "score"], ascending=[True, False]).head(8)[["name", "score", "tier", "next_action", "owner", "channel", "reason"]]
@@ -243,6 +245,13 @@ def view_experiments():
     e = mart("experiment_results")
     st.subheader("Experiments")
     st.warning("These are SIMULATED results on synthetic data. They demonstrate the method; the generator planted the effects (A +30%, B +15%, C 0).")
+    sweep_path = ROOT / "docs" / "seed_sweep.json"
+    note = "Each result below is one simulated draw. Running three experiments at once carries a multiple comparisons risk; no alpha adjustment is applied."
+    if sweep_path.exists():
+        sm = json.loads(sweep_path.read_text())["summary"]
+        note += (f" Across {sm['n_seeds']} simulated seeds: A ships in {sm['A']['decisions'].get('SHIP', 0)}, B in {sm['B']['decisions'].get('SHIP', 0)}, "
+                 f"and C looks significant by chance in {sm['C']['significant_p_lt_0.05']}.")
+    st.caption(note)
     for _, r in e.iterrows():
         st.markdown(f"### Experiment {r.experiment_id}: {r['name']}")
         c = st.columns(4)

@@ -30,9 +30,7 @@ make test        # full regression suite
 | [LOOM_SCRIPT.md](LOOM_SCRIPT.md) | 5-8 minute walkthrough script |
 | [DEPLOY.md](DEPLOY.md) | Push to GitHub and deploy on Streamlit Community Cloud |
 
-![Dashboard screenshots go here](docs/screenshots/README.md)
-
-(Screenshots placeholder: capture each dashboard view after `make dashboard` and save into `docs/screenshots/`.)
+Screenshots: placeholder, see [docs/screenshots/README.md](docs/screenshots/README.md). (Capture each dashboard view after `make dashboard` and save into `docs/screenshots/`.)
 
 ## Architecture
 
@@ -72,6 +70,8 @@ The full log is [DECISIONS.md](DECISIONS.md). The ones worth knowing:
 
 - The data is synthetic and the funnel is deliberately generous (about a third of raw leads reach a first submission) so that Experiment A is statistically powered with about 1,500 agencies. Real baselines will be lower and need far larger samples; the sample-size calculator will say so.
 - Planted effects are plumbing tests, not findings. B (+15%) and C (null) are intentionally underpowered.
+- Every experiment result in this repo is one simulated draw of a design with imperfect power. `make sweep` re-runs 40 seeds and writes [docs/seed_sweep.json](docs/seed_sweep.json): A returns SHIP in most but not all seeds, B never ships, and C occasionally looks significant by chance.
+- Running three experiments at once carries a multiple comparisons risk (no alpha adjustment is applied). A real programme would pre-register one primary experiment.
 - One seed, one 12-month window, no seasonality, flat commission assumption, no underwriting profitability (loss ratio) or carrier-capacity constraints.
 - Deduplication blocks on state, so a duplicate with a missing state is not auto-merged.
 - The pipeline projection is assumption-driven and excludes repeat revenue.
