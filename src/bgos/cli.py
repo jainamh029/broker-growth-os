@@ -20,6 +20,31 @@ def run_pipeline(root=None, docs: bool = True) -> None:
         _docs.run_docs(root)
 
 
+def bootstrap_once(root=None, timeout: float = 600.0) -> None:
+    """Run the pipeline once even if several sessions ask at the same time (lock file, O_EXCL)."""
+    import os
+    import time
+    import config
+    paths = config.get_paths(root).ensure()
+    lock = paths.root / "data" / ".bootstrap.lock"
+    done = paths.marts / "topline.csv"
+    deadline = time.time() + timeout
+    while not done.exists():
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if time.time() > deadline:
+                raise TimeoutError("another session is generating the data and did not finish")
+            time.sleep(0.2)
+            continue
+        try:
+            if not done.exists():
+                run_pipeline(root, docs=False)
+        finally:
+            os.close(fd)
+            os.unlink(lock)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="bgos", description="Broker Growth OS (all data is SYNTHETIC)")
     ap.add_argument("command", choices=["data", "clean", "score", "metrics", "experiments", "ai-demo", "docs", "all", "sweep"])

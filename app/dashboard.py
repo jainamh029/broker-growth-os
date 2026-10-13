@@ -38,8 +38,8 @@ def mart(name: str) -> pd.DataFrame:
     if not path.exists():
         # First run (e.g. on Streamlit Community Cloud): generate the synthetic data, then read the marts.
         with st.spinner("First run: generating synthetic data (about a minute)..."):
-            from bgos.cli import run_pipeline
-            run_pipeline(None, docs=False)
+            from bgos.cli import bootstrap_once
+            bootstrap_once(None)
     if not path.exists():
         st.error(f"Missing data mart `{name}`. Run `make all` first.")
         st.stop()

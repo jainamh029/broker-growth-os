@@ -293,3 +293,23 @@ def test_metrics_refuse_to_run_on_unscored_database(tmp_path):
     # metrics that do not need scores still run
     assert len(metrics.run_metric("funnel_counts", conn)) == 7
     conn.close()
+
+
+# ---- B-14: concurrent first visitors must not both run the bootstrap pipeline -----------------------------------
+def test_bootstrap_runs_pipeline_once_under_concurrency(tmp_path, monkeypatch):
+    import threading
+    import time
+    from bgos import cli
+    calls = []
+
+    def fake_pipeline(root=None, docs=True):
+        calls.append(1)
+        time.sleep(0.8)
+        p = config.get_paths(root).ensure().marts / "topline.csv"
+        p.write_text("x\n")
+    monkeypatch.setattr(cli, "run_pipeline", fake_pipeline)
+    ts = [threading.Thread(target=cli.bootstrap_once, args=(tmp_path,)) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join(30) for t in ts]
+    assert len(calls) == 1 and not any(t.is_alive() for t in ts)
+    assert not (tmp_path / "data" / ".bootstrap.lock").exists()
