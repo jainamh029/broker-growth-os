@@ -1,0 +1,712 @@
+{
+ "note": "SYNTHETIC. One dataset per seed; planted effects A +30%, B +15%, C 0.",
+ "seeds": {
+  "1": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.013421,
+    "rel_lift": 0.196362
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.801109,
+    "rel_lift": 0.021117
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.460451,
+    "rel_lift": 0.249315
+   }
+  },
+  "10": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.006351,
+    "rel_lift": 0.234494
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.222764,
+    "rel_lift": 0.11887
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.829792,
+    "rel_lift": 0.076923
+   }
+  },
+  "11": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.0,
+    "rel_lift": 0.4575
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.322267,
+    "rel_lift": 0.086026
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.37426,
+    "rel_lift": 0.425685
+   }
+  },
+  "12": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.00662,
+    "rel_lift": 0.213127
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.58567,
+    "rel_lift": -0.042353
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.390707,
+    "rel_lift": -0.24549
+   }
+  },
+  "13": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.00022,
+    "rel_lift": 0.316214
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.002864,
+    "rel_lift": 0.293658
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.12781,
+    "rel_lift": -0.329444
+   }
+  },
+  "14": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.001331,
+    "rel_lift": 0.269394
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.633804,
+    "rel_lift": 0.041656
+   },
+   "C": {
+    "decision": "ITERATE",
+    "p_value": 0.018375,
+    "rel_lift": -0.527644
+   }
+  },
+  "15": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.019195,
+    "rel_lift": 0.203125
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 2.3e-05,
+    "rel_lift": 0.431421
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.480347,
+    "rel_lift": -0.22584
+   }
+  },
+  "16": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 3.2e-05,
+    "rel_lift": 0.376199
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.171737,
+    "rel_lift": 0.124214
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.370296,
+    "rel_lift": 0.295886
+   }
+  },
+  "17": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.011422,
+    "rel_lift": 0.224086
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.038539,
+    "rel_lift": 0.196533
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.642759,
+    "rel_lift": 0.2
+   }
+  },
+  "18": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000262,
+    "rel_lift": 0.329969
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.587281,
+    "rel_lift": 0.04817
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.390154,
+    "rel_lift": 0.363636
+   }
+  },
+  "19": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000213,
+    "rel_lift": 0.310202
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.016053,
+    "rel_lift": 0.221173
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.755461,
+    "rel_lift": 0.08764
+   }
+  },
+  "2": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.03585,
+    "rel_lift": 0.177847
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.173268,
+    "rel_lift": 0.130899
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.518214,
+    "rel_lift": -0.2
+   }
+  },
+  "20": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.049486,
+    "rel_lift": 0.162952
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.685645,
+    "rel_lift": 0.035302
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.361985,
+    "rel_lift": -0.217391
+   }
+  },
+  "21": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 2.2e-05,
+    "rel_lift": 0.388116
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.025954,
+    "rel_lift": 0.218653
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.972182,
+    "rel_lift": -0.012987
+   }
+  },
+  "22": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.002831,
+    "rel_lift": 0.249462
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.246998,
+    "rel_lift": 0.103829
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.687409,
+    "rel_lift": 0.142857
+   }
+  },
+  "23": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000557,
+    "rel_lift": 0.307909
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.003901,
+    "rel_lift": 0.302764
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.712765,
+    "rel_lift": 0.1258
+   }
+  },
+  "24": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000562,
+    "rel_lift": 0.287099
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.065583,
+    "rel_lift": 0.167461
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.379796,
+    "rel_lift": -0.26
+   }
+  },
+  "25": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 4e-05,
+    "rel_lift": 0.353078
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.406912,
+    "rel_lift": -0.069321
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.085673,
+    "rel_lift": 0.888889
+   }
+  },
+  "26": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.001063,
+    "rel_lift": 0.276425
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.2524,
+    "rel_lift": 0.108629
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.673098,
+    "rel_lift": -0.116447
+   }
+  },
+  "27": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000104,
+    "rel_lift": 0.331841
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.634197,
+    "rel_lift": 0.040448
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.68206,
+    "rel_lift": 0.142857
+   }
+  },
+  "28": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.202421,
+    "rel_lift": 0.09555
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.023114,
+    "rel_lift": 0.203404
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.729967,
+    "rel_lift": 0.111765
+   }
+  },
+  "29": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.0,
+    "rel_lift": 0.449334
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.518934,
+    "rel_lift": 0.05625
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.522452,
+    "rel_lift": -0.186765
+   }
+  },
+  "3": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.004103,
+    "rel_lift": 0.233676
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.932413,
+    "rel_lift": -0.006911
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.611285,
+    "rel_lift": 0.151899
+   }
+  },
+  "30": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 4.1e-05,
+    "rel_lift": 0.349033
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.010734,
+    "rel_lift": 0.244218
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.224257,
+    "rel_lift": 0.5
+   }
+  },
+  "31": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.0,
+    "rel_lift": 0.463381
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.185045,
+    "rel_lift": 0.125765
+   },
+   "C": {
+    "decision": "ITERATE",
+    "p_value": 0.016382,
+    "rel_lift": 1.056962
+   }
+  },
+  "32": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.024031,
+    "rel_lift": 0.180829
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.025244,
+    "rel_lift": 0.218927
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.070496,
+    "rel_lift": 0.818182
+   }
+  },
+  "33": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 8e-06,
+    "rel_lift": 0.404841
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.023541,
+    "rel_lift": 0.209722
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.398025,
+    "rel_lift": -0.25
+   }
+  },
+  "34": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.000743,
+    "rel_lift": 0.281643
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.00524,
+    "rel_lift": 0.268506
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.125122,
+    "rel_lift": 0.777778
+   }
+  },
+  "35": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.00527,
+    "rel_lift": 0.240178
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.071532,
+    "rel_lift": 0.185634
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.1693,
+    "rel_lift": -0.327273
+   }
+  },
+  "36": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.302552,
+    "rel_lift": 0.080053
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.73837,
+    "rel_lift": 0.02829
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.436229,
+    "rel_lift": 0.266667
+   }
+  },
+  "37": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.001858,
+    "rel_lift": 0.264129
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.438289,
+    "rel_lift": 0.07124
+   },
+   "C": {
+    "decision": "ITERATE",
+    "p_value": 0.035839,
+    "rel_lift": 1.111111
+   }
+  },
+  "38": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 4e-06,
+    "rel_lift": 0.404145
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.866444,
+    "rel_lift": 0.014243
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.429906,
+    "rel_lift": -0.222222
+   }
+  },
+  "39": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 1.2e-05,
+    "rel_lift": 0.377492
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.200493,
+    "rel_lift": 0.120058
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 1.0,
+    "rel_lift": 0.0
+   }
+  },
+  "4": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.073429,
+    "rel_lift": 0.14987
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.051307,
+    "rel_lift": 0.19032
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.316513,
+    "rel_lift": -0.277778
+   }
+  },
+  "40": {
+   "A": {
+    "decision": "ITERATE",
+    "p_value": 0.066496,
+    "rel_lift": 0.149163
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.095242,
+    "rel_lift": 0.153772
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.41968,
+    "rel_lift": 0.313131
+   }
+  },
+  "5": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 1e-05,
+    "rel_lift": 0.403496
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.005276,
+    "rel_lift": 0.270099
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 1.0,
+    "rel_lift": 0.0
+   }
+  },
+  "6": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 8.5e-05,
+    "rel_lift": 0.358425
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.003207,
+    "rel_lift": 0.291141
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.375429,
+    "rel_lift": -0.260563
+   }
+  },
+  "7": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.00347,
+    "rel_lift": 0.251773
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.066142,
+    "rel_lift": 0.17278
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.420234,
+    "rel_lift": 0.313433
+   }
+  },
+  "8": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.001047,
+    "rel_lift": 0.295393
+   },
+   "B": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.745104,
+    "rel_lift": -0.028472
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.518104,
+    "rel_lift": 0.281944
+   }
+  },
+  "9": {
+   "A": {
+    "decision": "SHIP",
+    "p_value": 0.010899,
+    "rel_lift": 0.219125
+   },
+   "B": {
+    "decision": "ITERATE",
+    "p_value": 0.043579,
+    "rel_lift": 0.198154
+   },
+   "C": {
+    "decision": "INCONCLUSIVE",
+    "p_value": 0.284024,
+    "rel_lift": 0.357813
+   }
+  }
+ },
+ "summary": {
+  "A": {
+   "decisions": {
+    "ITERATE": 8,
+    "SHIP": 32
+   },
+   "mean_rel_lift": 0.2829,
+   "significant_p_lt_0.05": 36
+  },
+  "B": {
+   "decisions": {
+    "INCONCLUSIVE": 26,
+    "ITERATE": 14
+   },
+   "mean_rel_lift": 0.1392,
+   "significant_p_lt_0.05": 14
+  },
+  "C": {
+   "decisions": {
+    "INCONCLUSIVE": 37,
+    "ITERATE": 3
+   },
+   "mean_rel_lift": 0.135,
+   "significant_p_lt_0.05": 3
+  },
+  "n_seeds": 40
+ }
+}

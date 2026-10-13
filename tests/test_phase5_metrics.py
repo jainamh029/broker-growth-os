@@ -96,8 +96,9 @@ def test_source_quality(marts, nest):
             assert row.suppressed == 0
         else:
             assert np.isnan(row.bind_rate_per_lead) and row.suppressed == 1
-    assert sq.bind_rate_per_lead.drop(["podcast_sponsor", "state_assoc_booth", "wholesaler_alumni"]).idxmax() == "referral"
-    assert sq.bind_rate_per_lead.drop(["podcast_sponsor", "state_assoc_booth", "wholesaler_alumni"]).idxmin() == "linkedin"
+    big = sq.bind_rate_per_lead.drop(["podcast_sponsor", "state_assoc_booth", "wholesaler_alumni"])
+    assert big.idxmin() == "linkedin"  # audit B-10: referral-is-best is verified at large n (test_audit_regressions.py)
+    assert big["referral"] >= big.drop("referral").median()
 
 
 def test_time_to_quote(marts, clean_tables):

@@ -247,6 +247,19 @@ def _zfit(df: pd.DataFrame) -> np.ndarray:
     return (raw - raw.mean()) / raw.std()
 
 
+P_SUB_CAP = 0.97
+
+
+def submit_probability(p: float, treated: bool) -> float:
+    """P(an engaged ICP agency completes a first submission). Experiment A multiplies it by (1 + A_TRUE_LIFT).
+
+    The CONTROL probability is capped at P_SUB_CAP / (1 + lift) for both arms so the treated probability never
+    needs clipping; clipping only the treated arm (the original code) diluted the planted +30% to about +24%.
+    """
+    p0 = min(p, P_SUB_CAP / (1 + A_TRUE_LIFT))
+    return p0 * (1 + A_TRUE_LIFT) if treated else p0
+
+
 def _simulate(rng, ag: pd.DataFrame, a_arm, b_arm):
     touches, subs, b_assign = [], [], []
     z = _zfit(ag)
@@ -324,9 +337,7 @@ def _simulate(rng, ag: pd.DataFrame, a_arm, b_arm):
         will_submit = False
         if eng and icp:
             logit = INT_SUB + 0.9 * z[k] + SRC_SUB[src] + 0.5 * had_reply + 0.7 * had_meeting + 0.8 * (q - 0.4) + oeff
-            p_sub = float(expit(logit))
-            if a_arm[k] == "treatment":
-                p_sub = min(0.97, p_sub * (1 + A_TRUE_LIFT))
+            p_sub = submit_probability(float(expit(logit)), a_arm[k] == "treatment")
             will_submit = bool(rng.random() < p_sub) or bool(r.forced_win)
             q14 = Q14_BASE * (1 + B_TRUE_LIFT) if b_arm[k] == "treatment" else Q14_BASE
             if r.forced_win:
@@ -453,7 +464,9 @@ def _blocked_arms(rng, strata: np.ndarray) -> np.ndarray:
 def generate(root: Path | str | None = None, seed: int | None = None, n_agencies: int | None = None,
              write: bool = True) -> dict:
     """Generate dirty raw CSVs + manifest. Returns in-memory frames, incl. pre-defect truth (tests only)."""
-    paths = config.get_paths(root).ensure()
+    paths = config.get_paths(root)
+    if write:  # write=False must have no filesystem side effects
+        paths.ensure()
     seed = config.SEED if seed is None else seed
     n = n_agencies or config.N_TRUE_AGENCIES
     rng = np.random.default_rng(seed)

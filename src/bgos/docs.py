@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
+
 import pandas as pd
 
 import config
@@ -71,7 +73,11 @@ def memo_facts(root: Path | str | None = None) -> dict[str, str]:
     ex = m("experiment_results").set_index("experiment_id")
     ttq = m("time_to_quote")
     med = ttq[(ttq.scope == "all_submissions") & (ttq.dimension == "overall")].iloc[0].median_hours
+    sweep = json.loads((config.ROOT / "docs" / "seed_sweep.json").read_text())["summary"]
     d = {
+        "n_seeds": str(sweep["n_seeds"]),
+        "a_ship": str(sweep["A"]["decisions"].get("SHIP", 0)), "b_ship": str(sweep["B"]["decisions"].get("SHIP", 0)),
+        "c_sig": str(sweep["C"]["significant_p_lt_0.05"]),
         "raw": _n(f.loc["raw_lead", "agencies"]), "icp": _n(f.loc["icp_qualified", "agencies"]),
         "icp_pct": _p(f.loc["icp_qualified", "cumulative_conversion"]),
         "engaged": _n(f.loc["engaged", "agencies"]), "first_sub": _n(f.loc["first_submission", "agencies"]),
@@ -104,7 +110,7 @@ def build_memo(facts: dict[str, str]) -> str:
 
 **Growth thesis.** A specialty wholesaler grows by turning more agencies into repeat submitters, not by sending more email. Our north star is weekly qualified submissions from active agencies; every lever is judged by downstream bind and repeat, never by sends or connections.
 
-**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound ({facts['bound_pct']} of leads), {facts['repeat']} repeat.
+**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound ({facts['bound_pct']} of leads), {facts['repeat']} repeat. The funnel is deliberately generous so Experiment A can be powered; real rates will be lower.
 
 **ICP.** Commercial lines with E&S or specialty exposure and at least 3 producers. A transparent fit score ranks every agency: {facts['tier1']} Tier 1 for immediate outbound, {facts['tier2']} Tier 2 to nurture, {facts['react']} dormant to reactivate. The tier ordering is a plumbing check on synthetic data, not evidence of predictive power.
 
@@ -117,7 +123,7 @@ Watch metric: median time to quote is {facts['ttq']} hours; protect it while vol
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.
 - Days 31-60, ship experiments: ICP-targeted outbound, submission-ready onboarding, and reactivation versus a holdout, each with a pre-registered effect size, sample size and decision rule.
-- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation was {facts['c_dec']}. Real baselines will differ.
+- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation was {facts['c_dec']}. This is one simulated draw: across {facts['n_seeds']} simulated seeds, A ships in {facts['a_ship']}, B in {facts['b_ship']}, and C shows a spurious significant result in {facts['c_sig']}. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
 
 **Assumptions to validate in the first 30 days** (about Hedge, from its public positioning as an AI-native specialty insurer serving brokers; none confirmed):
 - Brokers are the main growth channel and a complete submission is the activation event.
@@ -149,7 +155,7 @@ def build_loom(facts: dict[str, str]) -> str:
 | 1:30-2:30 | `outputs/data_quality_report.md` | "The raw data is deliberately dirty: duplicates, mixed source labels, impossible dates. Every defect is injected and counted, and cleaning reconciles to the exact injected counts. Tiny sources that show 100% are suppressed, not celebrated." |
 | 2:30-3:30 | Ranked Accounts view | "The fit score is a transparent weighted sum, and every row says why. {facts['tier1']} Tier 1 accounts, {facts['react']} dormant ones to win back. The tier ordering check is a plumbing test: the generator makes conversion depend on fit, so I do not call it predictive." |
 | 3:30-4:30 | Weekly Growth Review, then Source Quality | "North star is qualified submissions from active agencies. Source quality is judged on bind, not lead count: {facts['worst_src']} gives the volume but {facts['best_src']} binds {facts['src_ratio']} better. Activation is {facts['act_rate']} within 14 days, the first gap I would attack." |
-| 4:30-5:30 | Experiments view | "Three experiments with pre-registered rules. ICP targeting: {facts['a_dec']} on a simulated {facts['a_lift']} lift. Onboarding looks positive but is underpowered, so the framework says {facts['b_dec']}, not ship. Reactivation is a planted null and returns {facts['c_dec']}. These are simulated results that demonstrate the method." |
+| 4:30-5:30 | Experiments view | "Three experiments with pre-registered rules. ICP targeting: {facts['a_dec']} on a simulated {facts['a_lift']} lift. Onboarding looks positive but is underpowered, so the framework says {facts['b_dec']}, not ship. Say plainly that this is one simulated draw: across {facts['n_seeds']} seeds A ships in {facts['a_ship']}. Reactivation is a planted null and returns {facts['c_dec']}. These are simulated results that demonstrate the method." |
 | 5:30-6:30 | `outputs/ai_demo.md` | "The AI layer is human-in-the-loop: research, a deterministic submission-quality score, next-best-action, and email first lines. Drafts always require review and there is no send function anywhere in the code." |
 | 6:30-7:30 | `STRATEGY_MEMO.md` | "First 30 days: establish truth. Join the real CRM and submission data, validate these assumptions about Hedge, lock definitions, baseline every metric. Days 31-60 ship the three experiments; days 61-90 prove lift." |
 
