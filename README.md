@@ -6,6 +6,8 @@ This project simulates the growth operating system for Hedge, an AI-native speci
 
 Anything about Hedge that this project assumes is listed under "Assumptions to validate in the first 30 days" in [STRATEGY_MEMO.md](STRATEGY_MEMO.md).
 
+**Live showcase page (static, shareable): https://jainamh029.github.io/broker-growth-os/** (charts, results and the memo; the interactive dashboard runs locally or on Streamlit Cloud, see [DEPLOY.md](DEPLOY.md)).
+
 ## Quickstart
 
 ```bash

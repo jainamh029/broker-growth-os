@@ -170,3 +170,5 @@ def run_docs(root: Path | str | None = None) -> None:
     (paths.root / "DATA_DICTIONARY.md").write_text(build_data_dictionary())
     (paths.root / "STRATEGY_MEMO.md").write_text(build_memo(facts))
     (paths.root / "LOOM_SCRIPT.md").write_text(build_loom(facts))
+    from . import site
+    site.run_site(root)  # docs/index.html for GitHub Pages (needs the memo written above)

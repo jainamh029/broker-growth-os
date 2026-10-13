@@ -17,9 +17,9 @@ Independent audit of Broker Growth OS. Severity: Sev-1 wrong number / crash on a
 | B-11 | 3 | fixed | writing test B-10 | `generate(write=False)` still created output directories. | Only create directories when writing (4109a5e) |
 | B-12 | 2 | fixed | claims audit | Memo said "speed is what brokers remember", an unsupported claim about broker behaviour. | Removed (e29986f) |
 | B-16 | 2 | fixed | random test ordering (`pytest-randomly`, seed 817394477) | Two defects. (1) Product: `make clean` rebuilds the SQLite database and empties `ranked_accounts`; `make metrics` run afterwards silently reported 0 dormant agencies and an empty reactivation list instead of failing (a wrong number with no error). (2) Test isolation: `test_idempotent_run_twice` re-ran clean on the session-shared root, wiping scores for later tests, so the suite passed only in file order. | `metrics` now raises a clear "run make score" error for the two score-dependent metrics; the idempotence test runs on a copy (this commit) |
-| B-13 | 3 | open | A1 | Report said 11 commits; there were 12. DECISIONS D8 still says "(planned)". | Logged only |
-| B-14 | 3 | open | A7 | Two simultaneous first visitors to a fresh deployment could both run the bootstrap pipeline and write the same files. Output is deterministic so the files converge, but it is a race. | Logged only (Streamlit Cloud runs one process; low risk) |
-| B-15 | 3 | open | A8 | Git author email is a personal address and will be public on GitHub. | Left as instructed; see AUDIT_REPORT.md |
+| B-13 | 3 | fixed (D8 text); commit-count claim is history and cannot change | A1 | Report said 11 commits; there were 12. DECISIONS D8 still says "(planned)". | D8 reworded |
+| B-14 | 3 | fixed | A7 | Two simultaneous first visitors to a fresh deployment could both run the bootstrap pipeline and write the same files. Output is deterministic so the files converge, but it is a race. | `bootstrap_once()` lock file + concurrency test |
+| B-15 | 3 | open | A8 | Git author email is a personal address and will be public on GitHub. | Cannot be fixed without rewriting pushed history (force-push is forbidden); left, noted in AUDIT_REPORT.md |
 
 ## Weak or tautological tests found
 

@@ -313,3 +313,17 @@ def test_bootstrap_runs_pipeline_once_under_concurrency(tmp_path, monkeypatch):
     [t.join(30) for t in ts]
     assert len(calls) == 1 and not any(t.is_alive() for t in ts)
     assert not (tmp_path / "data" / ".bootstrap.lock").exists()
+
+
+# ---- GitHub Pages showcase ----------------------------------------------------------------------------------------
+def test_committed_pages_site_matches_regenerated_and_is_labelled(gen_result, marts):
+    from bgos import docs, experiments
+    experiments.run_experiments(gen_result["root"])
+    docs.run_docs(gen_result["root"])
+    fresh = (gen_result["root"] / "docs" / "index.html").read_text()
+    assert (ROOT / "docs" / "index.html").read_text() == fresh  # cannot drift from the outputs
+    assert docs.DISCLAIMER in fresh and "simulated" in fresh.lower() and "multiple comparisons" in fresh
+    facts = docs.memo_facts(gen_result["root"])
+    for k in ("raw", "icp", "bound", "a_lift"):
+        assert facts[k] in fresh
+    assert "fig-funnel" in fresh and "fig-exp" in fresh
