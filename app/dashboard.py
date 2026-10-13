@@ -83,13 +83,13 @@ def view_monday():
                            text=[f"{int(a):,}" + ("" if pd.isna(s) else f"  ({s:.0%} of prior)") for a, s in zip(ff.agencies, ff.step_conversion)],
                            textposition="auto"))
     fig.update_yaxes(autorange="reversed")
-    st.plotly_chart(style(fig, 360), use_container_width=True)
+    st.plotly_chart(style(fig, 360), width="stretch")
     takeaway(ins.takeaway_funnel(f))
     r = mart("ranked_accounts")
     new_biz = r[r.tier.isin(["Tier 1", "Tier 2"]) & r.action.isin(["outbound", "onboarding"])]
     top = new_biz.sort_values(["tier", "score"], ascending=[True, False]).head(8)[["name", "score", "tier", "next_action", "owner", "channel", "reason"]]
     st.markdown("**Work first this week: highest-fit accounts that are not yet submitting**")
-    st.dataframe(top, hide_index=True, use_container_width=True)
+    st.dataframe(top, hide_index=True, width="stretch")
 
 
 def view_weekly():
@@ -102,24 +102,24 @@ def view_weekly():
     fig = go.Figure()
     fig.add_bar(x=full.wk, y=full.qualified_submissions, name="Qualified submissions", marker_color=ACCENT)
     fig.add_scatter(x=full.wk, y=full.ma4, name="4-week average", line=dict(color=ALERT, width=2))
-    st.plotly_chart(style(fig), use_container_width=True)
+    st.plotly_chart(style(fig), width="stretch")
     takeaway(ins.takeaway_north_star(w))
     st.markdown("**Inputs** (what we control)")
     fig = go.Figure()
     for col, nm, colr in (("new_icp_agencies", "New ICP agencies", ACCENT), ("new_engaged_agencies", "Newly engaged", MUTED), ("new_activations", "Activations (first complete submission)", ALERT)):
         fig.add_scatter(x=full.wk, y=full[col].rolling(4).mean(), name=nm + " (4-wk avg)", line=dict(color=colr))
-    st.plotly_chart(style(fig, 300), use_container_width=True)
+    st.plotly_chart(style(fig, 300), width="stretch")
     st.markdown("**Diagnostics** (why the north star moved)")
     fig = go.Figure()
     for col, nm, colr in (("completeness_rate", "Submission completeness", ACCENT), ("quote_rate", "Quote rate", MUTED), ("bind_rate_of_quoted", "Bind rate of quoted", ALERT)):
         fig.add_scatter(x=full.wk, y=full[col], name=nm, line=dict(color=colr), connectgaps=False)
     fig.update_yaxes(tickformat=".0%")
-    st.plotly_chart(style(fig, 300), use_container_width=True)
+    st.plotly_chart(style(fig, 300), width="stretch")
     last = full.dropna(subset=["completeness_rate"]).tail(4)
     takeaway(f"Over the last 4 weeks with data, {ins.pct(last.completeness_rate.mean(), 0)} of submissions arrived complete; "
              f"{int(full.tail(4).reactivated_submissions.sum())} submissions came from reactivated (previously dormant) agencies and are excluded from the north star.")
     st.dataframe(full.tail(8)[["week_start", "qualified_submissions", "new_icp_agencies", "new_engaged_agencies", "new_activations", "completeness_rate", "quote_rate", "bind_rate_of_quoted"]],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
 
 
 def view_sources():
@@ -130,13 +130,13 @@ def view_sources():
     c1, c2 = st.columns(2)
     fig = go.Figure(go.Bar(x=ok.lead_source, y=ok.bind_rate_per_lead, marker_color=ACCENT, text=[ins.pct(v) for v in ok.bind_rate_per_lead], textposition="outside"))
     fig.update_yaxes(tickformat=".0%", title="Bound agencies per lead")
-    c1.plotly_chart(style(fig), use_container_width=True)
+    c1.plotly_chart(style(fig), width="stretch")
     fig = go.Figure(go.Bar(x=ok.lead_source, y=ok.leads, marker_color=MUTED, text=ok.leads, textposition="outside"))
     fig.update_yaxes(title="Leads (volume)")
-    c2.plotly_chart(style(fig), use_container_width=True)
+    c2.plotly_chart(style(fig), width="stretch")
     takeaway(ins.takeaway_sources(sq))
     show = sq[["lead_source", "leads", "first_submission_rate", "bind_rate_per_lead", "repeat_rate_of_bound", "commission_per_lead", "suppressed"]]
-    st.dataframe(show, hide_index=True, use_container_width=True)
+    st.dataframe(show, hide_index=True, width="stretch")
 
 
 def view_ttq():
@@ -149,16 +149,16 @@ def view_ttq():
     cx = d[d.dimension == "risk_complexity"].set_index("value").reindex(["low", "medium", "high"]).dropna(subset=["median_hours"])
     fig = go.Figure(go.Bar(x=cx.index, y=cx.median_hours, marker_color=ACCENT, text=[f"{v:.0f}h" for v in cx.median_hours], textposition="outside"))
     fig.update_yaxes(title="Median hours to quote")
-    c1.plotly_chart(style(fig), use_container_width=True)
+    c1.plotly_chart(style(fig), width="stretch")
     lob = d[d.dimension == "line_of_business"].sort_values("median_hours")
     if len(lob):
         fig = go.Figure(go.Bar(y=lob.value, x=lob.median_hours, orientation="h", marker_color=MUTED))
         fig.update_xaxes(title="Median hours to quote")
-        c2.plotly_chart(style(fig), use_container_width=True)
+        c2.plotly_chart(style(fig), width="stretch")
     else:
         c2.info("Line-of-business split is shown for the all-submissions scope.")
     takeaway(ins.takeaway_ttq(t))
-    st.dataframe(d[["dimension", "value", "n", "median_hours"]], hide_index=True, use_container_width=True)
+    st.dataframe(d[["dimension", "value", "n", "median_hours"]], hide_index=True, width="stretch")
 
 
 def view_activation():
@@ -167,12 +167,12 @@ def view_activation():
     m = act[act.cohort != "ALL"]
     fig = go.Figure(go.Bar(x=m.cohort, y=m.activation_rate, marker_color=ACCENT, text=[ins.pct(v, 0) for v in m.activation_rate], textposition="outside"))
     fig.update_yaxes(tickformat=".0%", title="Engaged agencies submitting within 14 days")
-    st.plotly_chart(style(fig), use_container_width=True)
+    st.plotly_chart(style(fig), width="stretch")
     c = coh[coh.cohort != "ALL"].set_index("cohort")[["retention_30", "retention_60", "retention_90"]]
     heat = go.Figure(go.Heatmap(z=c.values, x=["30 days", "60 days", "90 days"], y=c.index, colorscale=[[0, "#eef3f8"], [1, ACCENT]],
                                 text=[[ins.pct(v, 0) for v in row] for row in c.values], texttemplate="%{text}", zmin=0, zmax=1, showscale=False))
     heat.update_yaxes(autorange="reversed", title="First-submission month")
-    st.plotly_chart(style(heat, 420), use_container_width=True)
+    st.plotly_chart(style(heat, 420), width="stretch")
     takeaway(ins.takeaway_activation(act, coh))
     st.caption("Only mature agencies (a full window observed before the as-of date) are in each denominator; blank cells are suppressed or immature.")
 
@@ -187,10 +187,10 @@ def view_dormant():
     top = d.head(25)
     fig = go.Figure(go.Bar(y=top.name[::-1], x=top.prior_bound_premium[::-1], orientation="h", marker_color=ACCENT))
     fig.update_xaxes(title="Prior bound premium (USD)")
-    st.plotly_chart(style(fig, 620), use_container_width=True)
+    st.plotly_chart(style(fig, 620), width="stretch")
     takeaway(ins.takeaway_dormant(d))
     st.dataframe(d[["priority_rank", "name", "owner", "state", "specialty_focus", "days_dormant", "prior_complete_submissions", "prior_bound_premium", "score"]],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
 
 
 def view_pipeline():
@@ -210,13 +210,13 @@ def view_pipeline():
         fig.add_bar(y=p.segment, x=p[col], name=nm, orientation="h", marker_color=colr)
     fig.update_layout(barmode="stack")
     fig.update_xaxes(title="Open agencies by stage")
-    st.plotly_chart(style(fig, 360), use_container_width=True)
+    st.plotly_chart(style(fig, 360), width="stretch")
     fig = go.Figure(go.Bar(y=p.segment, x=p.projected_commission, orientation="h", marker_color=ACCENT))
     fig.update_xaxes(title="Projected first-bind commission (USD)")
-    st.plotly_chart(style(fig, 320), use_container_width=True)
+    st.plotly_chart(style(fig, 320), width="stretch")
     takeaway(ins.takeaway_pipeline(p))
     st.dataframe(p.sort_values("projected_commission", ascending=False)[["segment", "expected_new_bound_agencies", "avg_first_bind_commission", "projected_commission", "projected_premium"]],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
 
 
 def view_ranked():
@@ -233,10 +233,10 @@ def view_ranked():
         f = f[f.name.str.contains(q, case=False, regex=False)]
     vc = r.tier.value_counts().reindex(["Tier 1", "Tier 2", "Reactivation", "Tier 3"])
     fig = go.Figure(go.Bar(x=vc.index, y=vc.values, marker_color=ACCENT, text=vc.values, textposition="outside"))
-    st.plotly_chart(style(fig, 260), use_container_width=True)
+    st.plotly_chart(style(fig, 260), width="stretch")
     takeaway(ins.takeaway_ranked(r))
     st.caption("Score = 0.30 specialty fit + 0.25 commercial volume + 0.20 E&S activity + 0.15 engagement + 0.10 geographic priority. Every reason names the top two drivers.")
-    st.dataframe(f[["name", "score", "tier", "next_action", "owner", "channel", "reason"]].head(500), hide_index=True, use_container_width=True)
+    st.dataframe(f[["name", "score", "tier", "next_action", "owner", "channel", "reason"]].head(500), hide_index=True, width="stretch")
 
 
 def view_experiments():
@@ -257,7 +257,7 @@ def view_experiments():
         if pd.notna(r.planted_true_lift):
             fig.add_vline(x=r.planted_true_lift * 100, line_color=ALERT, annotation_text="planted truth", annotation_position="top")
         fig.update_xaxes(title="Relative lift (%)")
-        st.plotly_chart(style(fig, 170), use_container_width=True)
+        st.plotly_chart(style(fig, 170), width="stretch")
         takeaway(ins.takeaway_experiment(r))
         st.caption(f"Control {int(r.x_control)}/{int(r.n_control)} = {r.rate_control:.1%}; treatment {int(r.x_treatment)}/{int(r.n_treatment)} = {r.rate_treatment:.1%}; "
                    f"achieved power {r.achieved_power:.0%}; SRM p = {r.srm_p_value:.2f}.")

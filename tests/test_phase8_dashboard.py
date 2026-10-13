@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -44,7 +45,7 @@ def test_every_view_renders_without_exception_and_has_banner_and_takeaway(view, 
 
 
 def test_all_views_listed():
-    src = open(APP).read()
+    src = Path(APP).read_text()
     for v in VIEWS:
         assert f'"{v}"' in src
 
@@ -86,7 +87,7 @@ def test_pipeline_view_totals_match_metric(pipeline_root, monkeypatch):
 
 def test_no_hardcoded_numbers_in_dashboard_source():
     import re
-    src = open(APP).read()
+    src = Path(APP).read_text()
     body = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
     assert "read_csv" in body and "marts" in body
     # headline literals such as "1,500" or "$2.3M" must not appear
