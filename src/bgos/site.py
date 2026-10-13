@@ -43,36 +43,36 @@ def _md(text: str) -> str:
 
 
 CSS = """
-:root{--ink:__INK__;--blue:__BLUE__;--green:__GREEN__;--surface:__SURFACE__;--grid:__GRID__;--muted:__MUTED__;--dark:__DARK__}
+:root{--ink:__INK__;--blue:__BLUE__;--green:__GREEN__;--surface:__SURFACE__;--grid:__GRID__;--muted:__MUTED__;--dark:__DARK__;--card:__CARD__;--bg:__BG__}
 *{box-sizing:border-box} html{scroll-behavior:smooth;scroll-padding-top:120px}
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);margin:0;background:#f7fbfa;line-height:1.55}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);margin:0;background:linear-gradient(160deg,var(--bg),__BG2__) fixed;line-height:1.55}
 .skip{position:absolute;left:-999px} .skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:30}
 header.top{background:linear-gradient(120deg,var(--dark),var(--blue) 55%,var(--green));color:#fff}
 header.top .in{max-width:1180px;margin:0 auto;padding:18px 20px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 header.top h1{margin:0;font-size:1.5rem;letter-spacing:-.01em} header.top p{margin:2px 0 0;color:#e6f4ee;font-size:.92rem}
 .links a{color:#fff;text-decoration:none;border:1px solid #ffffff88;border-radius:10px;padding:9px 14px;margin-left:8px;font-size:.9rem;display:inline-block;min-height:44px;line-height:24px}
 .links a:hover{background:#ffffff26}
-nav{position:sticky;top:0;z-index:10;background:#ffffffee;backdrop-filter:blur(8px);border-bottom:1px solid var(--grid)}
+nav{position:sticky;top:0;z-index:10;background:#e7f1efee;backdrop-filter:blur(8px);border-bottom:1px solid var(--grid)}
 nav .in{max-width:1180px;margin:0 auto;padding:0 12px;display:flex;gap:2px;overflow-x:auto}
 nav a{padding:13px 12px;color:var(--muted);text-decoration:none;font-size:.92rem;white-space:nowrap;border-bottom:3px solid transparent;min-height:44px}
 nav a.active,nav a:hover{color:var(--green);border-bottom-color:var(--green)}
 main{max-width:1180px;margin:0 auto;padding:14px 20px 50px}
 .banner{background:#fff7e0;border:1px solid #e8c766;color:#5b4500;padding:10px 14px;border-radius:10px;margin:6px 0 14px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:10px 0 14px}
-.kpi{background:#fff;border:1px solid var(--grid);border-radius:14px;padding:12px 14px;transition:transform .18s,box-shadow .18s,border-color .18s}
+.kpi{background:var(--card);border:1px solid var(--grid);border-radius:14px;padding:12px 14px;transition:transform .18s,box-shadow .18s,border-color .18s}
 .kpi:hover{transform:translateY(-3px);box-shadow:0 10px 22px #0b2a3c1f;border-color:var(--green)}
 .kpi .v{font-size:1.65rem;font-weight:700;color:var(--dark)} .kpi .l{font-size:.85rem;color:var(--muted)} .kpi .d{font-size:.8rem;color:var(--green)}
 h2{color:var(--dark);margin:6px 0 4px} h3{color:var(--dark);margin:20px 0 6px}
 .take{border-left:4px solid var(--green);background:var(--surface);border-radius:0 10px 10px 0;padding:8px 14px;margin:6px 0 16px}
-.card{border:1px solid var(--grid);border-radius:14px;padding:8px 18px 14px;background:#fff;box-shadow:0 1px 3px #0b2a3c14;margin:10px 0}
+.card{border:1px solid var(--grid);border-radius:14px;padding:8px 18px 14px;background:var(--card);box-shadow:0 1px 3px #0b2a3c14;margin:10px 0}
 .ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0;font-size:.92rem}
-.ctl label{display:flex;gap:8px;align-items:center;color:var(--ink)} select,input[type=search]{min-height:40px;border-radius:8px;border:1px solid var(--grid);padding:0 10px;font:inherit;background:#fff}
+.ctl label{display:flex;gap:8px;align-items:center;color:var(--ink)} select,input[type=search]{min-height:40px;border-radius:8px;border:1px solid var(--grid);padding:0 10px;font:inherit;background:var(--card)}
 input[type=range]{accent-color:var(--green);min-height:32px} input[type=checkbox]{accent-color:var(--green);width:18px;height:18px}
-.seg{display:inline-flex;border:1px solid var(--grid);border-radius:10px;overflow:hidden;background:#fff}
-.seg button{border:0;background:#fff;padding:10px 14px;cursor:pointer;font:inherit;min-height:44px;color:var(--ink)} .seg button[aria-pressed=true]{background:var(--green);color:#fff}
-.btn{border:1px solid var(--green);color:#0a5c40;background:#fff;border-radius:10px;padding:9px 14px;cursor:pointer;font:inherit;min-height:44px}
+.seg{display:inline-flex;border:1px solid var(--grid);border-radius:10px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:var(--card);padding:10px 14px;cursor:pointer;font:inherit;min-height:44px;color:var(--ink)} .seg button[aria-pressed=true]{background:var(--green);color:#fff}
+.btn{border:1px solid var(--green);color:#0a5c40;background:var(--card);border-radius:10px;padding:9px 14px;cursor:pointer;font:inherit;min-height:44px}
 .btn:hover{background:var(--green);color:#fff}
-.tw{overflow-x:auto;border:1px solid var(--grid);border-radius:12px;background:#fff}
+.tw{overflow-x:auto;border:1px solid var(--grid);border-radius:12px;background:var(--card)}
 table{border-collapse:collapse;width:100%;font-size:.86rem} th{background:var(--surface);text-align:left;position:sticky;top:0;cursor:default}
 td,th{padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top} tr:hover td{background:#f1f8f5}
 .badge{font-size:.75rem;padding:3px 10px;border-radius:999px;color:#fff;vertical-align:middle} .ship{background:var(--green)} .iter{background:var(--blue)} .inc{background:var(--muted)}
@@ -84,7 +84,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;color:var(--muted);font-size:.9rem}
 .memo p,.memo li{max-width:820px} .memo .note{background:var(--surface);padding:8px 12px;border-radius:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
-""".replace("__INK__", theme.INK).replace("__BLUE__", theme.BLUE).replace("__GREEN__", theme.GREEN).replace("__SURFACE__", theme.SURFACE).replace("__GRID__", theme.GRID).replace("__MUTED__", theme.MUTED).replace("__DARK__", theme.BLUE_DARK)
+""".replace("__INK__", theme.INK).replace("__BLUE__", theme.BLUE).replace("__GREEN__", theme.GREEN).replace("__SURFACE__", theme.SURFACE).replace("__GRID__", theme.GRID).replace("__MUTED__", theme.MUTED).replace("__DARK__", theme.BLUE_DARK).replace("__CARD__", theme.CARD).replace("__BG__", theme.BG).replace("__BG2__", theme.BG2)
 
 JS = r"""
 const D = JSON.parse(document.getElementById('data').textContent);
@@ -95,7 +95,7 @@ const pct = (x, d) => (x == null || isNaN(x)) ? 'n/a' : (x * 100).toFixed(d == n
 const money = x => x == null ? 'n/a' : (Math.abs(x) >= 1e6 ? '$' + (x / 1e6).toFixed(2) + 'M' : Math.abs(x) >= 1e4 ? '$' + fmt(x / 1e3) + 'K' : '$' + fmt(x));
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const view = $('#view');
-function lay(h, extra) { return Object.assign({height: h, margin: {l: 55, r: 12, t: 16, b: 44}, font: {color: C.ink, size: 13}, paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+function lay(h, extra) { return Object.assign({height: h, margin: {l: 55, r: 12, t: 34, b: 44}, font: {color: C.ink, size: 13}, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
   xaxis: {gridcolor: C.grid}, yaxis: {gridcolor: C.grid}, legend: {orientation: 'h', y: -0.22}, hoverlabel: {bgcolor: '#fff'}}, extra || {}); }
 function plot(id, traces, l) { Plotly.react(id, traces, l, {displayModeBar: false, responsive: true}); }
 const take = t => `<div class="take"><b>Takeaway.</b> ${esc(t)}</div>`;

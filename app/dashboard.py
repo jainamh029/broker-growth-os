@@ -58,7 +58,7 @@ def takeaway(text: str) -> None:
 
 def style(fig: go.Figure, h: int = 340) -> go.Figure:
     fig.update_layout(template="plotly_white", height=h, margin=dict(l=10, r=10, t=30, b=10), font=dict(color=INK, size=13),
-                      legend=dict(orientation="h", y=-0.2), colorway=theme.COLORWAY, hovermode="closest",
+                      legend=dict(orientation="h", y=-0.2), colorway=theme.COLORWAY, hovermode="closest", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                       hoverlabel=dict(bgcolor="#ffffff", font_size=13))
     fig.update_xaxes(gridcolor=theme.GRID)
     fig.update_yaxes(gridcolor=theme.GRID)
