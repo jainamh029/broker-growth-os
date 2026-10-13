@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     elif a.command == "docs":
         from . import docs
         docs.run_docs(a.root)
-        print("wrote DATA_DICTIONARY.md and STRATEGY_MEMO.md")
+        print("wrote DATA_DICTIONARY.md, STRATEGY_MEMO.md and LOOM_SCRIPT.md")
     return 0
 
 

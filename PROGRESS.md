@@ -34,3 +34,6 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 9: Documentation and deliverables: GREEN (2026-10-13)
 - Tests: tests/test_phase9_docs.py (13: dictionary completeness, memo 410 words (<550), memo numbers traceable and equal regenerated, links+anchors resolve, README quickstart executed via make, determinism of `make all`, loom/deploy checks); full suite 155 passed, 0 failed.
 - Cut: none. FINAL_REPORT.md is a stub until Phase 10.
+## Phase 10: Final verification: GREEN (2026-10-13)
+- venv deleted and recreated (`make setup`), `data/` and `outputs/` removed, `make all` exit 0; full suite run twice, 155 passed both times; secret scan clean; no TODO/FIXME; FINAL_REPORT.md written.
+- Cut: none. Blockers: none.
