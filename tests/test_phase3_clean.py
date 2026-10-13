@@ -114,8 +114,12 @@ def _hash_dir(d):
     return out
 
 
-def test_idempotent_run_twice(gen_result, clean_result):
-    root = gen_result["root"]
+def test_idempotent_run_twice(gen_result, clean_result, tmp_path):
+    # audit B-16: run on a COPY of the raw data; re-running clean on the shared root rebuilds its database and
+    # wipes ranked_accounts, which made later tests order-dependent under random ordering.
+    root = tmp_path / "idem"
+    shutil.copytree(gen_result["root"] / "data" / "raw", root / "data" / "raw")
+    clean.run_clean(root)
     before = _hash_dir(root / "data" / "clean")
     report_before = (root / "outputs" / "data_quality_report.md").read_text()
     clean.run_clean(root)

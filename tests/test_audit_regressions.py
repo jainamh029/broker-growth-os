@@ -277,3 +277,19 @@ def test_planted_source_quality_ordering_holds_at_large_n(seed):
     assert rate.idxmax() == "referral" and rate.idxmin() == "linkedin"
     assert vol.idxmax() == "linkedin" and vol.idxmin() == "referral"
     assert rate["referral"] > 1.2 * rate["partner"]
+
+
+# ---- B-16: metrics silently returned 0 dormant agencies when the DB had not been scored ---------------------------
+def test_metrics_refuse_to_run_on_unscored_database(tmp_path):
+    root = tmp_path / "r"
+    generate.generate(root=root, n_agencies=200)
+    clean.run_clean(root)  # note: no run_score
+    conn = metrics.connect(root)
+    for name in ("topline", "dormant_reactivation"):
+        with pytest.raises(RuntimeError, match="make score"):
+            metrics.run_metric(name, conn)
+    with pytest.raises(RuntimeError, match="make score"):
+        metrics.run_all(root)
+    # metrics that do not need scores still run
+    assert len(metrics.run_metric("funnel_counts", conn)) == 7
+    conn.close()

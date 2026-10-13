@@ -62,7 +62,18 @@ def sql_text(name: str) -> str:
     return (config.get_paths().sql / REGISTRY[name].sql_file).read_text()
 
 
+NEEDS_SCORES = {"topline", "dormant_reactivation"}  # these read ranked_accounts, which `make score` fills
+
+
+def _require_scored(conn: sqlite3.Connection) -> None:
+    if conn.execute("SELECT COUNT(*) FROM ranked_accounts").fetchone()[0] == 0:
+        raise RuntimeError("ranked_accounts is empty: run `make score` (after `make clean`) before computing this metric. "
+                           "Re-running `make clean` rebuilds the database and clears scores.")
+
+
 def run_metric(name: str, conn: sqlite3.Connection, **overrides) -> pd.DataFrame:
+    if name in NEEDS_SCORES:
+        _require_scored(conn)
     df = pd.read_sql_query(sql_text(name), conn, params=default_params(**overrides))
     return df.replace([np.inf, -np.inf], np.nan)
 
