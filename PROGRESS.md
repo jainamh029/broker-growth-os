@@ -17,3 +17,6 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 4: Transparent scoring and segmentation: GREEN (2026-10-13)
 - Tests: tests/test_phase4_scoring.py; full suite 69 passed, 0 failed.
 - Cut: none. Tier ordering check (T1 > T2 > T3 first-submission rate) passes; it validates plumbing only because the generator makes conversion depend on fit.
+## Phase 5: Metrics layer: GREEN (2026-10-13)
+- Tests: tests/test_phase5_metrics.py (16, each SQL metric cross-checked against independent pandas); full suite 85 passed, 0 failed.
+- Cut: none.

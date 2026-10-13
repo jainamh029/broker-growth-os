@@ -129,3 +129,12 @@ DEDUPE_THRESHOLD = 0.85  # difflib ratio on normalized agency-name cores, within
 HARD_TO_PLACE_LINES = ("Umbrella/Excess", "Professional Liability", "Inland Marine", "Cyber")
 HARD_LINES_CAP = 3
 ES_APPETITE_SCORES = {"high": 1.0, "medium": 0.6, "low": 0.25, "none": 0.0}
+
+# --- pipeline projection ---------------------------------------------------
+PIPELINE_OPEN_DAYS = 90  # an agency is "open pipeline" if its last activity is within this many days of the as-of date
+
+# --- experiment windows ----------------------------------------------------
+A_OUTCOME_DAYS = 60   # A: first complete submission within 60d of first touch
+B_OUTCOME_DAYS = 14   # B: complete submission within 14d of engagement
+C_OUTCOME_DAYS = 45   # C: complete submission within 45d after reactivation date
+MIN_N_WEEKLY = 10     # min denominator for weekly diagnostic rates
