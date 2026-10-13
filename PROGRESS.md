@@ -20,3 +20,7 @@ Resume rule: read the last entry, start at the next phase.
 ## Phase 5: Metrics layer: GREEN (2026-10-13)
 - Tests: tests/test_phase5_metrics.py (16, each SQL metric cross-checked against independent pandas); full suite 85 passed, 0 failed.
 - Cut: none.
+## Phase 6: Experiment framework: GREEN (2026-10-13)
+- Tests: tests/test_phase6_experiments.py (17); full suite 102 passed, 0 failed.
+- One fix loop iteration: B came out at -11% (simple randomization imbalance) -> stratified randomization in the generator (D25). No assertion weakened.
+- Cut: none.

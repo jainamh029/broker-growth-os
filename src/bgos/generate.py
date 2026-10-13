@@ -438,6 +438,18 @@ def _frames(touches, subs):
     return t, pd.DataFrame(subs)
 
 
+def _blocked_arms(rng, strata: np.ndarray) -> np.ndarray:
+    """Stratified (blocked) 50/50 randomization: within each stratum arms alternate after a random shuffle."""
+    arms = np.empty(len(strata), dtype=object)
+    for key in sorted(set(strata)):
+        idx = np.where(strata == key)[0]
+        idx = rng.permutation(idx)
+        first = int(rng.integers(0, 2))
+        for j, i in enumerate(idx):
+            arms[i] = "treatment" if (j + first) % 2 == 0 else "control"
+    return arms.astype(str)
+
+
 def generate(root: Path | str | None = None, seed: int | None = None, n_agencies: int | None = None,
              write: bool = True) -> dict:
     """Generate dirty raw CSVs + manifest. Returns in-memory frames, incl. pre-defect truth (tests only)."""
@@ -447,8 +459,10 @@ def generate(root: Path | str | None = None, seed: int | None = None, n_agencies
     rng = np.random.default_rng(seed)
 
     ag = _true_agencies(rng, n)
-    a_arm = np.where(rng.permutation(n) % 2 == 0, "treatment", "control")
-    b_arm = np.where(rng.permutation(n) % 2 == 0, "treatment", "control")
+    strata = (ag.lead_source.astype(str) + "|" + ag.is_icp.astype(str) + "|"
+              + pd.qcut(_zfit(ag), 3, labels=False).astype(str)).to_numpy()
+    a_arm = _blocked_arms(rng, strata)
+    b_arm = _blocked_arms(rng, strata)
     ag["outreach_sequence"] = np.where(a_arm == "treatment", "ICP-Targeted v2", "Standard v1")
     touches, subs, b_assign = _simulate(rng, ag, a_arm, b_arm)
     t, s = _frames(touches, subs)
