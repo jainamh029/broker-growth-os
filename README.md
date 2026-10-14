@@ -17,6 +17,8 @@ make dashboard   # open http://localhost:8501
 make test        # full regression suite
 ```
 
+Tested with Python 3.12 (3.12.2) and the exact versions pinned in `requirements.txt`; a regeneration under Python 3.14.6 with the same pins produced byte-identical pages and marts. Floats written to marts and pages are rounded to 10 significant digits (`src/bgos/rounding.py`) so regenerations on other builds are byte-identical; the statistics themselves keep full precision.
+
 `make all` is deterministic (global seed 42 in [config.py](config.py)): two runs produce byte-identical files. Individual steps: `make data`, `make clean`, `make score`, `make metrics`, `make experiments`, `make ai-demo`, `make docs`. `make reset` deletes generated files. No API key and no network are needed for anything.
 
 ## What you get
@@ -72,14 +74,31 @@ The full log is [DECISIONS.md](DECISIONS.md). The ones worth knowing:
 ## Known limits
 
 - The data is synthetic and the funnel is deliberately generous (about a third of raw leads reach a first submission). Experiment A is sized for its 20% ship threshold, which needs about 3,000 agencies (D41); real baselines will be lower and need far larger samples, and the sample-size calculator will say so.
+- **Dataset size.** The brief asked for about 1,500 agencies; the default is 3,000 so that Experiment A can be powered for its 20% ship rule. At 1,500 agencies Experiment A ships in 0 of 20 simulated seeds; at 2,000, 2; at 3,000, 19. In a real launch, the number of agencies is the binding constraint on what can be proven. Re-run with `make sweep-n` (see [docs/n_sensitivity.json](docs/n_sensitivity.json)).
 - Planted effects are plumbing tests, not findings. B (+15%) and C (null) are intentionally underpowered.
 - Every experiment result in this repo is one simulated draw of a design with imperfect power. `make sweep` re-runs 40 seeds and writes [docs/seed_sweep.json](docs/seed_sweep.json): A returns SHIP in most but not all seeds, B never ships, and C occasionally looks significant by chance.
+- Experiment C cannot be powered at this size (147 agencies per arm against 940 required); INCONCLUSIVE is expected. Its headline is the absolute lift with its confidence interval plus the minimum detectable effect at 80% power for its actual n. Experiment A tests the v2 sequence against v1, not the ICP definition; the Experiments tab adds a labelled observational panel (ICP vs non-ICP in A's control arm).
 - Running three experiments at once carries a multiple comparisons risk (no alpha adjustment is applied). A real programme would pre-register one primary experiment.
 - One seed, one 12-month window, no seasonality, flat commission assumption, no underwriting profitability (loss ratio) or carrier-capacity constraints.
 - Deduplication blocks on state, so a duplicate with a missing state is not auto-merged.
 - The pipeline projection is assumption-driven and excludes repeat revenue.
 - The real-LLM provider is only tested with a fake client; it has never been run against the live API here.
 - Hedge-specific assumptions are unverified and listed in [STRATEGY_MEMO.md](STRATEGY_MEMO.md).
+
+## Audit history
+
+This project was reviewed three times (my own audit, then two external reviews). Each review found real problems; the fixes are in the repository and every number below is from the generated outputs. Details: [AUDIT_REPORT.md](AUDIT_REPORT.md), [BUGS.md](BUGS.md), [DECISIONS.md](DECISIONS.md).
+
+| What the first version got wrong | How it was fixed | Before | After |
+|---|---|---|---|
+| **Circular scoring.** Complete submissions counted as engagement, then the tier check validated against first submission. | Engagement uses opens, clicks, replies and meetings only; an Active tier keeps customers out of the prospect tiers; scores are point-in-time; the check is out-of-sample (scored 90 days earlier). | 77 of 83 Tier 1 accounts (92.8%) had already submitted | 0 customers in Tiers 1-3; holdout Tier 1 28.1%, Tier 2 11.7%, Tier 3 0.6% |
+| **Immature cohorts understated conversion.** Recent leads had not had time to convert. | Each funnel step is measured only on agencies old enough to have converted. | Lead to bound 13.9% | 21.7% mature (15.5% observed) |
+| **Experiment A sized for +30% but shipped at +20%.** | Every experiment is sized for the smallest effect it would ship; the dataset was enlarged to 3,000 agencies to power that. | 484 per arm "reached" | 862 per arm required, 1,221 available |
+| **Post-hoc "achieved power".** | Replaced by power at the pre-registered effect; the lower CI bound is reported against the ship threshold. | Power computed from the observed effect | Power at the pre-registered 20% lift: 92% |
+| **The planted effect was diluted** by a probability cap (about +24% realised against +30% claimed). | The cap moved to the control probability so the lift is exact. | Mean lift +23.5% over 40 seeds | +29.2% over 40 seeds |
+| **A stale deployed memo** was reported alongside a current index page. | Could not be reproduced (repo and Pages build were consistent). Both pages now carry a data fingerprint, CI fails if committed pages differ from a regeneration, and `scripts/verify_live.py` checks the live site. | No staleness signal | Fingerprint in both footers |
+
+Reviews are part of the method: a green test suite proves the code does what it says, not that the design is right, so the design was challenged separately.
 
 ## Process notes
 

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Strategy memo | Broker Growth OS</title><meta name="theme-color" content="#0b1b33">
-<style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1b33'/%3E%3Cpath d='M7 22l6-7 5 4 7-9' fill='none' stroke='%232dd4bf' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"><style>
 :root{--ink:#0f172a;--blue:#2563eb;--green:#0f766e;--surface:#eef2f7;--grid:#e2e8f0;--muted:#475569;--dark:#0b1b33;--card:#ffffff;--bg:#f3f5f8}
 *{box-sizing:border-box} html{scroll-behavior:smooth;scroll-padding-top:120px}
 body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);margin:0;background:linear-gradient(160deg,var(--bg),#eceff5) fixed;line-height:1.55}
@@ -40,6 +40,7 @@ td,th{padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top} t
 .calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px} .result{font-size:1.8rem;font-weight:700;color:var(--green)}
 a{color:var(--blue)} code{background:var(--surface);padding:1px 5px;border-radius:4px}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+footer .fp{font-size:.8rem;font-family:ui-monospace,Menlo,monospace}
 footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;color:var(--muted);font-size:.9rem}
 .memo p,.memo li{max-width:820px} .memo .note{background:var(--surface);padding:8px 12px;border-radius:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -49,19 +50,18 @@ footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;colo
 <main><div class="banner" role="note"><b>Synthetic data. Demonstrates the method, not Hedge's actual performance.</b> Every number below comes from the generated synthetic outputs.</div>
 <div class="card memo"><p class='note'>Synthetic data. Demonstrates the method, not Hedge's actual performance. Every number below comes from the generated synthetic outputs.</p>
 <p><b>Growth thesis.</b> A specialty wholesaler grows by turning more agencies into repeat submitters, not by sending more email. Our north star is weekly qualified submissions from active agencies; every lever is judged by downstream bind and repeat, never by sends or connections.</p>
-<p><b>Funnel.</b> Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: 3,000 leads, 2,282 ICP-qualified (76%), 1,695 engaged, 1,077 first submissions, 466 bound, 343 repeat. Counting only leads old enough to have converted, 21.7% reach a bind (15.5% raw, which understates it). The funnel is deliberately generous so Experiment A can be powered; real rates will be lower.</p>
+<p><b>Funnel.</b> Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: 3,000 leads, 2,282 ICP-qualified (76%), 1,695 engaged, 1,077 first submissions, 466 bound, 343 repeat. Counting only leads old enough to have converted, 21.7% reach a bind (15.5% raw, which understates it). The funnel is deliberately generous, and real rates will be lower.</p>
 <p><b>ICP.</b> Commercial lines with E&amp;S or specialty exposure and at least 3 producers. A transparent fit score ranks every agency: 672 are active customers to expand, 405 dormant to reactivate, and among prospects 24 are Tier 1 (immediate outbound) and 706 Tier 2 (nurture). Scored 90 days before the as-of date using only data available then, Tier 1 prospects converted at 28% versus 1% for Tier 3. On synthetic data this checks plumbing, not real predictive power.</p>
 <p><b>Two highest-leverage gaps (synthetic baseline).</b></p>
 <ol>
 <li>Activation: only 38% of engaged agencies send a complete submission within 14 days. Each +10 points adds about 170 first submissions on this book.</li>
 <li>Source mix: linkedin supplies 30% of leads but binds 11.7% of them, versus 35.6% for referral (3.1x). Moving 10% of lead volume to referral-quality sources adds roughly 72 bound agencies (back-of-envelope; assumes that channel scales).</li>
 </ol>
-<p>Watch metric: median time to quote is 34 hours; protect it while volume grows.</p>
 <p><b>90-day plan.</b></p>
 <ul>
 <li>Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.</li>
 <li>Days 31-60, ship experiments: ICP-targeted outbound, submission-ready onboarding, and reactivation versus a holdout, each with a pre-registered effect size, sample size and decision rule.</li>
-<li>Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned SHIP (+25.5%, 95% CI +12.9% to +39.4%), onboarding was ITERATE (underpowered: 801 per arm versus 2,744 needed), reactivation was INCONCLUSIVE. This is one simulated draw: across 40 simulated seeds, A ships in 37, B in 0, and C shows a spurious significant result in 3. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.</li>
+<li>Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned SHIP (+25.5%, 95% CI +12.9% to +39.4%), onboarding was ITERATE (underpowered: 801 per arm versus 2,744 needed), reactivation (C) INCONCLUSIVE: it cannot be powered at this size, so INCONCLUSIVE is expected. This is one simulated draw: across 40 simulated seeds, A ships in 37, B in 0, and C shows a spurious significant result in 3. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. The dataset was enlarged from about 1,500 to 3,000 agencies so the 20% ship rule could be powered: A ships in 0 of 20 simulated seeds at 1,500 agencies, 2 at 2,000 and 19 at 3,000. In a real launch, the number of agencies is the binding constraint on what can be proven.</li>
 </ul>
 <p><b>Assumptions to validate in the first 30 days</b> (about Hedge, from its public positioning as an AI-native specialty insurer serving brokers; none confirmed):</p>
 <ul>
@@ -73,5 +73,5 @@ footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;colo
 </ul></div>
 <h3>More</h3><ul><li><a href="https://github.com/jainamh029/broker-growth-os/blob/main/README.md">README and quickstart</a></li><li><a href="https://github.com/jainamh029/broker-growth-os/blob/main/AUDIT_REPORT.md">Independent audit report</a></li>
 <li><a href="https://github.com/jainamh029/broker-growth-os/blob/main/DECISIONS.md">Decision log</a></li><li><a href="https://github.com/jainamh029/broker-growth-os/blob/main/DEPLOY.md">Run the Streamlit version locally or deploy it</a></li></ul></main>
-<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.</footer>
+<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.<br><span class="fp" id="fingerprint">Data fingerprint e6a12e038c &middot; as of 2026-09-30 &middot; seed 42 &middot; 3,000 agencies</span></footer>
 </body></html>

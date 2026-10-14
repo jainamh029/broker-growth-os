@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from .rounding import round_df
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ REGISTRY: dict[str, Metric] = {m.name: m for m in [
            ("completeness_rate", "quote_rate", "bind_rate_of_quoted")),
     Metric("topline", "topline.sql", "Monday-morning topline numbers"),
     Metric("experiment_outcomes", "experiment_outcomes.sql", "Per-assignment experiment outcomes"),
+    Metric("experiment_a_icp_split", "experiment_a_icp_split.sql", "OBSERVATIONAL: first-submission rate, ICP vs non-ICP, in the A control arm"),
 ]}
 
 
@@ -74,10 +76,24 @@ def _require_scored(conn: sqlite3.Connection) -> None:
                            "Re-running `make clean` rebuilds the database and clears scores.")
 
 
+def _icp_split_post(df: pd.DataFrame) -> pd.DataFrame:
+    from .insights import wilson_ci
+    df = df.copy()
+    df["rate"] = df["x"] / df["n"]
+    ci = [wilson_ci(int(x), int(n)) for x, n in zip(df["x"], df["n"])]
+    df["ci_low"], df["ci_high"] = [c[0] for c in ci], [c[1] for c in ci]
+    return df
+
+
+POSTPROCESS = {"experiment_a_icp_split": _icp_split_post}
+
+
 def run_metric(name: str, conn: sqlite3.Connection, **overrides) -> pd.DataFrame:
     if name in NEEDS_SCORES:
         _require_scored(conn)
     df = pd.read_sql_query(sql_text(name), conn, params=default_params(**overrides))
+    if name in POSTPROCESS:
+        df = POSTPROCESS[name](df)
     return df.replace([np.inf, -np.inf], np.nan)
 
 
@@ -94,7 +110,7 @@ def run_all(root: Path | str | None = None) -> dict[str, pd.DataFrame]:
     try:
         for name in REGISTRY:
             df = run_metric(name, conn)
-            df.to_csv(paths.marts / f"{name}.csv", index=False)
+            round_df(df).to_csv(paths.marts / f"{name}.csv", index=False)
             out[name] = df
     finally:
         conn.close()

@@ -15,9 +15,11 @@ import pandas as pd
 
 import config
 from . import docs, insights as ins, theme
+from .rounding import round_obj
 from .funnel import STAGE_BY_KEY
 
 REPO = "https://github.com/jainamh029/broker-growth-os"
+FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1b33'/%3E%3Cpath d='M7 22l6-7 5 4 7-9' fill='none' stroke='%232dd4bf' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
 
 
 def _md(text: str) -> str:
@@ -81,6 +83,7 @@ td,th{padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top} t
 .calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px} .result{font-size:1.8rem;font-weight:700;color:var(--green)}
 a{color:var(--blue)} code{background:var(--surface);padding:1px 5px;border-radius:4px}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+footer .fp{font-size:.8rem;font-family:ui-monospace,Menlo,monospace}
 footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;color:var(--muted);font-size:.9rem}
 .memo p,.memo li{max-width:820px} .memo .note{background:var(--surface);padding:8px 12px;border-radius:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -261,15 +264,26 @@ V.experiments = function () {
   const e = D.experiments, S = D.sweep;
   view.innerHTML = `<h2>Experiments</h2><div class="banner"><b>SIMULATED results on synthetic data.</b> They demonstrate the method; the generator planted the effects (A +30%, B +15%, C 0).</div>
   <p class="small">${esc(D.meta.exp_note)}</p><div class="ctl">${seg('et', e.map(r => [r.id, r.id + ': ' + r.name]), e[0].id)}</div><div id="ecard"></div><div id="fig-exp"></div>
+  <h3>Observational panel (not an experiment)</h3><p class="small">First-submission rate of ICP vs non-ICP agencies within Experiment A's control arm, same outcome window and mature-only rule. The generator never lets non-ICP agencies submit, so on synthetic data this contrast holds by construction.</p>
+  ${table(D.icp_split, [{k: 'is_icp', l: 'Group', f: v => v ? 'ICP' : 'non-ICP'}, {k: 'n', l: 'n'}, {k: 'x', l: 'First submissions'}, {k: 'rate', l: 'Rate', f: v => pct(v)}, {k: 'ci_low', l: '95% Wilson low', f: v => pct(v)}, {k: 'ci_high', l: '95% Wilson high', f: v => pct(v)}])}${take(D.icp_take)}
   <h3>Decision rates across ${S.n_seeds} simulated seeds</h3><div class="tw"><table><thead><tr><th>Experiment</th><th>SHIP</th><th>ITERATE</th><th>INCONCLUSIVE</th><th>Significant (p&lt;0.05)</th><th>Mean lift</th></tr></thead><tbody>
   ${['A', 'B', 'C'].map(k => `<tr><td>${k}</td><td>${S[k].decisions.SHIP || 0}</td><td>${S[k].decisions.ITERATE || 0}</td><td>${S[k].decisions.INCONCLUSIVE || 0}</td><td>${S[k]['significant_p_lt_0.05']}</td><td>${pct(S[k].mean_rel_lift)}</td></tr>`).join('')}</tbody></table></div>
+  <h3>How many agencies does it take? (sensitivity to dataset size)</h3>${take(D.n_sens_take)}
+  <div class="tw"><table><thead><tr><th>Agencies</th><th>Experiment</th><th>SHIP</th><th>ITERATE</th><th>INCONCLUSIVE</th><th>Mean required per arm</th><th>Mean achieved per arm</th></tr></thead><tbody>
+  ${D.n_sens.map(r => `<tr><td>${fmt(r.agencies)}</td><td>${r.experiment}</td><td>${r.ship}</td><td>${r.iterate}</td><td>${r.inconclusive}</td><td>${fmt(r.mean_required)}</td><td>${fmt(r.mean_achieved)}</td></tr>`).join('')}</tbody></table></div>
+  <p class="small">Decisions out of ${D.n_sens_seeds} simulated seeds per row. Experiment A is sized for its 20% ship threshold; B and C are underpowered at every size shown.</p>
   <h3>Sample-size calculator</h3><p class="small">How many agencies per arm would a real test need? Same two-proportion formula as the framework.</p>
   <div class="card"><div class="calc"><div><label for="c-base">Baseline rate: <b id="o-base"></b></label><input id="c-base" type="range" min="2" max="60" value="10"></div>
   <div><label for="c-lift">Relative lift to detect: <b id="o-lift"></b></label><input id="c-lift" type="range" min="5" max="60" value="20"></div>
   <div><label for="c-alpha">Alpha</label><select id="c-alpha"><option value="1.6449">0.10</option><option value="1.96" selected>0.05</option><option value="2.5758">0.01</option></select></div>
   <div><label for="c-power">Power</label><select id="c-power"><option value="0.8416" selected>80%</option><option value="1.2816">90%</option><option value="1.6449">95%</option></select></div></div>
   <p>Required per arm: <span class="result" id="o-n" aria-live="polite"></span> &nbsp; Total: <b id="o-tot"></b></p></div>`;
-  const card = id => { const r = e.find(x => x.id === id); $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}.</p>
+  const card = id => { const r = e.find(x => x.id === id), c = r.id === 'C';
+    const head = c ? `Absolute lift <b>${(r.abs_lift * 100).toFixed(1)} points</b> (95% CI ${(r.abs_low * 100).toFixed(1)} to ${(r.abs_high * 100).toFixed(1)}), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}. Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}.
+      <br><b>Experiment C cannot be powered at this size; INCONCLUSIVE is expected.</b> At ${fmt(Math.min(r.n_control, r.n_treatment))} per arm only a lift of ${(r.mde_abs * 100).toFixed(1)} points (${(r.mde_rel * 100).toFixed(0)}% relative) or more is detectable at 80% power.
+      <br><span class="small">Secondary: relative lift ${(r.rel_lift * 100).toFixed(1)}% (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%).</span>`
+      : `Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}.`;
+    $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>${head}</p>
     <div class="bar"><span style="width:${Math.min(100, 100 * Math.min(r.n_control, r.n_treatment) / r.n_required)}%"></span></div><p class="small">Sample: ${fmt(Math.min(r.n_control, r.n_treatment))} per arm of ${fmt(r.n_required)} required. Power at the pre-registered ${(r.mde * 100).toFixed(0)}% lift: ${pct(r.power, 0)}.${r.ci_clears ? '' : ' The lower CI bound (' + (r.ci_low * 100).toFixed(1) + '%) is below the ' + (r.mde * 100).toFixed(0) + '% ship threshold; the rule ships on the point estimate (winner\'s-curse risk).'} Planted truth: ${(r.planted * 100).toFixed(0)}%. Simulated.</p>${take(r.take)}</div>`; };
   card(e[0].id); onSeg('et', card);
   const labs = e.map(r => r.id + ': ' + r.name + ' (' + r.decision + ')');
@@ -304,10 +318,12 @@ def build_data(root: Path | str | None = None) -> dict:
     act, coh, ttq, dor, pp = m("activation_rate"), m("cohort_retention"), m("time_to_quote"), m("dormant_reactivation"), m("pipeline_projection")
     ranked = pd.read_csv(paths.marts / "ranked_accounts.csv")
     sweep = json.loads((config.ROOT / "docs" / "seed_sweep.json").read_text())["summary"]
+    n_doc = json.loads((config.ROOT / "docs" / "n_sensitivity.json").read_text())
     exps = []
     for _, r in ex.iterrows():
         exps.append(dict(id=r.experiment_id, name=r["name"], decision=r.decision, rate_control=r.rate_control, rate_treatment=r.rate_treatment, rel_lift=r.rel_lift,
                          ci_low=r.rel_ci_low, ci_high=r.rel_ci_high, p_value=r.p_value, n_control=int(r.n_control), n_treatment=int(r.n_treatment),
+                         abs_lift=r.abs_lift, abs_low=r.abs_ci_low, abs_high=r.abs_ci_high, mde_abs=r.mde_abs_at_n, mde_rel=r.mde_rel_at_n,
                          n_required=int(r.n_required_per_arm), power=r.power_at_mde, mde=r.mde_relative, ci_clears=bool(r.ci_low_clears_ship), planted=r.planted_true_lift, take=ins.takeaway_experiment(r)))
     note = ("Each result below is one simulated draw. Running three experiments at once carries a multiple comparisons risk; no alpha adjustment is applied. "
             f"Across {sweep['n_seeds']} simulated seeds: A ships in {sweep['A']['decisions'].get('SHIP', 0)}, B in {sweep['B']['decisions'].get('SHIP', 0)}, "
@@ -318,7 +334,9 @@ def build_data(root: Path | str | None = None) -> dict:
         "topline": _records(tl)[0], "funnel": _records(f), "sources": _records(sq), "weekly": _records(wk), "ttq": _records(ttq),
         "activation": _records(act), "cohorts": _records(coh), "dormant": _records(dor), "pipeline": _records(pp),
         "ranked": _records(ranked, ["name", "score", "tier", "next_action", "owner", "channel", "reason", "state", "action"]),
-        "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")),
+        "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")), "icp_split": _records(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
+        "icp_take": ins.takeaway_icp_split(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
+        "n_sens": ins.n_sensitivity_rows(n_doc), "n_sens_take": ins.takeaway_n_sensitivity(n_doc), "n_sens_seeds": len(n_doc["seeds"]),
         "takeaways": {"funnel": ins.takeaway_funnel(f), "north_star": ins.takeaway_north_star(wk), "sources": ins.takeaway_sources(sq), "ttq": ins.takeaway_ttq(ttq),
                       "activation": ins.takeaway_activation(act, coh), "dormant": ins.takeaway_dormant(dor), "pipeline": ins.takeaway_pipeline(pp), "ranked": ins.takeaway_ranked(ranked)},
     }
@@ -327,17 +345,20 @@ def build_data(root: Path | str | None = None) -> dict:
 def _page(title: str, body: str, script: str = "", plotly: bool = False) -> str:
     cdn = '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>' if plotly else ""
     return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n'
-            f'<title>{title}</title><meta name="theme-color" content="{theme.BLUE_DARK}">\n<style>{CSS}</style>{cdn}</head><body>\n{body}\n{script}</body></html>\n')
+            f'<title>{title}</title><meta name="theme-color" content="{theme.BLUE_DARK}">\n<link rel="icon" href="{FAVICON}"><style>{CSS}</style>{cdn}</head><body>\n{body}\n{script}</body></html>\n')
 
 
 def build_site(root: Path | str | None = None) -> str:
     """Home page = the interactive dashboard only (no memo). Data is embedded; charts render in the browser."""
     paths = config.get_paths(root)
-    data = build_data(root)
+    data = round_obj(build_data(root))
     facts = docs.memo_facts(root)
     f = pd.read_csv(paths.marts / "funnel_counts.csv").set_index("stage")
-    kp = [("Raw leads", facts["raw"], ""), ("ICP-qualified", facts["icp"], ""), ("Engaged", facts["engaged"], ""), ("First submissions", facts["first_sub"], ""),
-          ("Bound", facts["bound"], f"{facts['bound_pct']} of mature leads ({facts['bound_obs_pct']} raw)")]
+    fc = f.copy()
+    cnt = lambda st_: f"{int(fc.loc[st_, 'agencies']):,}"
+    mc, oc = fc.loc["bound", "mature_cumulative_conversion"], fc.loc["bound", "observed_cumulative_conversion"]
+    kp = [("Raw leads", cnt("raw_lead"), ""), ("ICP-qualified", cnt("icp_qualified"), ""), ("Engaged", cnt("engaged"), ""), ("First submissions", cnt("first_submission"), ""),
+          ("Quoted", cnt("quoted"), ""), ("Bound", cnt("bound"), f"{mc * 100:.1f}% mature &middot; {oc * 100:.1f}% observed lead-to-bound"), ("Repeat", cnt("repeat_submission"), "")]
     kpis = "".join(f"<div class='kpi'><div class='v'>{v}</div><div class='l'>{k}</div>" + (f"<div class='d'>{d}</div>" if d else "") + "</div>" for k, v, d in kp)
     payload = json.dumps(data, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
     body = f"""<a class="skip" href="#view">Skip to dashboard</a>
@@ -346,7 +367,7 @@ def build_site(root: Path | str | None = None) -> str:
 <nav aria-label="Dashboard views"><div class="in" id="tabs"></div></nav>
 <main><div class="banner" role="note"><b>{docs.DISCLAIMER}</b> Every number here comes from a generated synthetic dataset; experiment results are simulated. Use the controls on each view to filter and explore.</div>
 <div class="kpis" aria-label="Headline funnel numbers">{kpis}</div><div id="view"></div></main>
-<footer>Synthetic data. Experiment results are simulated and demonstrate the method only. &middot; <a href="memo.html">Strategy memo</a> &middot; <a href="{REPO}">Source code</a></footer>
+<footer>Synthetic data. Experiment results are simulated and demonstrate the method only. &middot; <a href="memo.html">Strategy memo</a> &middot; <a href="{REPO}">Source code</a><br><span class="fp" id="fingerprint">{docs.stamp(root)}</span></footer>
 <script id="data" type="application/json">{payload}</script>"""
     return _page("Broker Growth OS", body, f"<script>{JS}</script>", plotly=True)
 
@@ -361,7 +382,7 @@ def build_memo_page(root: Path | str | None = None) -> str:
 <div class="card memo">{memo}</div>
 <h3>More</h3><ul><li><a href="{REPO}/blob/main/README.md">README and quickstart</a></li><li><a href="{REPO}/blob/main/AUDIT_REPORT.md">Independent audit report</a></li>
 <li><a href="{REPO}/blob/main/DECISIONS.md">Decision log</a></li><li><a href="{REPO}/blob/main/DEPLOY.md">Run the Streamlit version locally or deploy it</a></li></ul></main>
-<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.</footer>"""
+<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.<br><span class="fp" id="fingerprint">{docs.stamp(root)}</span></footer>"""
     return _page("Strategy memo | Broker Growth OS", body)
 
 

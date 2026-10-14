@@ -15,6 +15,7 @@ import pandas as pd
 from scipy import stats
 
 import config
+from .rounding import round_df
 
 SIM_NOTE = "SIMULATED RESULT on synthetic data; demonstrates the method, not real performance."
 SHIP, ITERATE, INCONCLUSIVE = "SHIP", "ITERATE", "INCONCLUSIVE"
@@ -133,6 +134,17 @@ def achieved_power(p1: float, p2: float, n1: int, n2: int, alpha: float = 0.05) 
     return float(stats.norm.sf((za * se0 - d) / se1) + stats.norm.cdf((-za * se0 - d) / se1))
 
 
+def minimum_detectable_effect(p1: float, n_per_arm: int, alpha: float = 0.05, power: float = 0.80) -> dict:
+    """Smallest treatment rate p2 > p1 that a two-sided two-proportion z-test detects with `power` at n_per_arm per arm.
+    Returns absolute (percentage points as a fraction) and relative MDE; NaN if even p2 = 0.999 would not reach `power`."""
+    from scipy.optimize import brentq
+    f = lambda p2: achieved_power(p1, p2, n_per_arm, n_per_arm, alpha) - power
+    if not (0 < p1 < 1) or f(0.999) < 0:
+        return {"abs": float("nan"), "rel": float("nan"), "p2": float("nan")}
+    p2 = brentq(f, p1 + 1e-9, 0.999, xtol=1e-12)
+    return {"abs": p2 - p1, "rel": p2 / p1 - 1, "p2": p2}
+
+
 def srm_check(n_control: int, n_treatment: int, expected_ratio: float = 0.5, threshold: float = 0.001) -> dict:
     """Sample-ratio-mismatch chi-square goodness-of-fit test on assignment counts."""
     total = n_control + n_treatment
@@ -205,6 +217,8 @@ class ExperimentResult:
     srm_flag: bool
     decision: str
     rationale: str
+    mde_abs_at_n: float
+    mde_rel_at_n: float
     note: str = SIM_NOTE
     planted_true_lift: float = float("nan")
 
@@ -222,6 +236,7 @@ def analyze_experiment(outcomes: pd.DataFrame, cfg: ExperimentConfig) -> Experim
     target = min(0.99, p1 * (1 + cfg.mde_relative))
     n_req = sample_size_two_proportions(p1, target, cfg.alpha, cfg.power) if 0 < p1 < 1 else 10 ** 9
     reached = is_sample_size_reached(n1, n2, n_req)
+    mde = minimum_detectable_effect(p1, min(n1, n2), cfg.alpha, cfg.power)
     power = achieved_power(p1, target, n1, n2, cfg.alpha)  # power at the PRE-REGISTERED effect (not post-hoc power)
     decision = decide(rel_lift=ci["rel_lift"], p_value=p, sample_size_reached=reached, srm_flag=srm["flag"], cfg=cfg)
     why = (f"rel lift {ci['rel_lift']:+.1%} (95% CI {ci['rel_ci_low']:+.1%} to {ci['rel_ci_high']:+.1%}), p {fmt_p(p)}; "
@@ -231,7 +246,7 @@ def analyze_experiment(outcomes: pd.DataFrame, cfg: ExperimentConfig) -> Experim
     return ExperimentResult(
         cfg.experiment_id, cfg.name, int(assigned["control"]), int(assigned["treatment"]), n1, n2, x1, x2, p1, p2,
         ci["abs_lift"], ci["abs_ci_low"], ci["abs_ci_high"], ci["rel_lift"], ci["rel_ci_low"], ci["rel_ci_high"],
-        z, p, cfg.alpha, cfg.mde_relative, int(n_req), bool(reached), power, bool(ci["rel_ci_low"] >= cfg.ship_min_relative_lift), srm["p_value"], srm["flag"], decision, why)
+        z, p, cfg.alpha, cfg.mde_relative, int(n_req), bool(reached), power, bool(ci["rel_ci_low"] >= cfg.ship_min_relative_lift), srm["p_value"], srm["flag"], decision, why, mde["abs"], mde["rel"])
 
 
 def run_experiments(root: Path | str | None = None) -> pd.DataFrame:
@@ -253,7 +268,7 @@ def run_experiments(root: Path | str | None = None) -> pd.DataFrame:
         res.planted_true_lift = truth.get(k, float("nan"))
         rows.append(asdict(res))
     df = pd.DataFrame(rows)
-    df.to_csv(paths.marts / "experiment_results.csv", index=False)
+    round_df(df).to_csv(paths.marts / "experiment_results.csv", index=False)
     write_report(df, paths.outputs / "experiment_results.md")
     return df
 

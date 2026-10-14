@@ -47,7 +47,7 @@ def bootstrap_once(root=None, timeout: float = 600.0) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="bgos", description="Broker Growth OS (all data is SYNTHETIC)")
-    ap.add_argument("command", choices=["data", "clean", "score", "metrics", "experiments", "ai-demo", "docs", "all", "sweep"])
+    ap.add_argument("command", choices=["data", "clean", "score", "metrics", "experiments", "ai-demo", "docs", "all", "sweep", "sweep-n"])
     ap.add_argument("--root", default=None, help="output root (default: repo, or $BGOS_ROOT)")
     a = ap.parse_args(argv)
     if a.command == "data":
@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     elif a.command == "sweep":
         from . import sweep
         print(sweep.run_sweep()["summary"])
+    elif a.command == "sweep-n":
+        from . import sweep
+        print(sweep.run_sweep_n()["summary"])
     elif a.command == "all":
         run_pipeline(a.root)
         print("pipeline complete (SYNTHETIC data)")

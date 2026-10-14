@@ -145,6 +145,7 @@ Derived: Broker Fit Score, tier and next action per agency (see scoring.py).
 | `weekly_growth_review` | `sql/weekly_growth_review.sql` | North star, inputs and diagnostics by week |
 | `topline` | `sql/topline.sql` | Monday-morning topline numbers |
 | `experiment_outcomes` | `sql/experiment_outcomes.sql` | Per-assignment experiment outcomes |
+| `experiment_a_icp_split` | `sql/experiment_a_icp_split.sql` | OBSERVATIONAL: first-submission rate, ICP vs non-ICP, in the A control arm |
 
 ## Raw files and injected defects
 

@@ -51,6 +51,27 @@ def build_data_dictionary() -> str:
 # ----------------------------------------------------------------------------------------------
 # FACTS (every number in the memo/loom comes from here)
 # ----------------------------------------------------------------------------------------------
+def data_fingerprint(root: Path | str | None = None) -> str:
+    """First 10 hex chars of SHA-256 over the sorted marts CSVs (names + bytes). Printed in the page footers so a stale deployed
+    page is visible; deliberately not the commit SHA (which would be circular)."""
+    import hashlib
+    h = hashlib.sha256()
+    for f in sorted(config.get_paths(root).marts.glob("*.csv")):
+        h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()[:10]
+
+
+def stamp(root: Path | str | None = None) -> str:
+    """Footer text: fingerprint, as-of date, seed and agency count."""
+    paths = config.get_paths(root)
+    seed = config.SEED
+    mp = paths.raw / "injected_defects.json"
+    if mp.exists():
+        seed = json.loads(mp.read_text()).get("seed", seed)
+    n = int(pd.read_csv(paths.marts / "topline.csv").iloc[0].agencies)
+    return f"Data fingerprint {data_fingerprint(root)} &middot; as of {config.AS_OF} &middot; seed {seed} &middot; {n:,} agencies"
+
+
 def _n(x) -> str:
     return f"{int(round(x)):,}"
 
@@ -75,7 +96,11 @@ def memo_facts(root: Path | str | None = None) -> dict[str, str]:
     ttq = m("time_to_quote")
     med = ttq[(ttq.scope == "all_submissions") & (ttq.dimension == "overall")].iloc[0].median_hours
     sweep = json.loads((config.ROOT / "docs" / "seed_sweep.json").read_text())["summary"]
+    nsd = json.loads((config.ROOT / "docs" / "n_sensitivity.json").read_text())
+    na = {int(k): v["A"]["decisions"].get("SHIP", 0) for k, v in nsd["summary"].items()}
     d = {
+        "n_lo": f"{min(na):,}", "n_mid": f"{sorted(na)[1]:,}", "n_hi": f"{max(na):,}",
+        "n_seeds_n": str(len(nsd["seeds"])), "ship_1500": str(na[1500]), "ship_2000": str(na[2000]), "ship_3000": str(na[3000]),
         "n_seeds": str(sweep["n_seeds"]),
         "a_ship": str(sweep["A"]["decisions"].get("SHIP", 0)), "b_ship": str(sweep["B"]["decisions"].get("SHIP", 0)),
         "c_sig": str(sweep["C"]["significant_p_lt_0.05"]),
@@ -113,7 +138,7 @@ def build_memo(facts: dict[str, str]) -> str:
 
 **Growth thesis.** A specialty wholesaler grows by turning more agencies into repeat submitters, not by sending more email. Our north star is weekly qualified submissions from active agencies; every lever is judged by downstream bind and repeat, never by sends or connections.
 
-**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound, {facts['repeat']} repeat. Counting only leads old enough to have converted, {facts['bound_pct']} reach a bind ({facts['bound_obs_pct']} raw, which understates it). The funnel is deliberately generous so Experiment A can be powered; real rates will be lower.
+**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound, {facts['repeat']} repeat. Counting only leads old enough to have converted, {facts['bound_pct']} reach a bind ({facts['bound_obs_pct']} raw, which understates it). The funnel is deliberately generous, and real rates will be lower.
 
 **ICP.** Commercial lines with E&S or specialty exposure and at least 3 producers. A transparent fit score ranks every agency: {facts['active']} are active customers to expand, {facts['react']} dormant to reactivate, and among prospects {facts['tier1']} are Tier 1 (immediate outbound) and {facts['tier2']} Tier 2 (nurture). Scored 90 days before the as-of date using only data available then, Tier 1 prospects converted at {facts['hold_t1']} versus {facts['hold_t3']} for Tier 3. On synthetic data this checks plumbing, not real predictive power.
 
@@ -121,12 +146,11 @@ def build_memo(facts: dict[str, str]) -> str:
 1. Activation: only {facts['act_rate']} of engaged agencies send a complete submission within 14 days. Each +10 points adds about {facts['act_gain']} first submissions on this book.
 2. Source mix: {facts['worst_src']} supplies {facts['worst_share']} of leads but binds {facts['worst_rate']} of them, versus {facts['best_rate']} for {facts['best_src']} ({facts['src_ratio']}). Moving 10% of lead volume to {facts['best_src']}-quality sources adds roughly {facts['src_gain']} bound agencies (back-of-envelope; assumes that channel scales).
 
-Watch metric: median time to quote is {facts['ttq']} hours; protect it while volume grows.
 
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.
 - Days 31-60, ship experiments: ICP-targeted outbound, submission-ready onboarding, and reactivation versus a holdout, each with a pre-registered effect size, sample size and decision rule.
-- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation was {facts['c_dec']}. This is one simulated draw: across {facts['n_seeds']} simulated seeds, A ships in {facts['a_ship']}, B in {facts['b_ship']}, and C shows a spurious significant result in {facts['c_sig']}. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
+- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation (C) {facts['c_dec']}: it cannot be powered at this size, so INCONCLUSIVE is expected. This is one simulated draw: across {facts['n_seeds']} simulated seeds, A ships in {facts['a_ship']}, B in {facts['b_ship']}, and C shows a spurious significant result in {facts['c_sig']}. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. The dataset was enlarged from about {facts['n_lo']} to {facts['n_hi']} agencies so the 20% ship rule could be powered: A ships in {facts['ship_1500']} of {facts['n_seeds_n']} simulated seeds at {facts['n_lo']} agencies, {facts['ship_2000']} at {facts['n_mid']} and {facts['ship_3000']} at {facts['n_hi']}. In a real launch, the number of agencies is the binding constraint on what can be proven.
 
 **Assumptions to validate in the first 30 days** (about Hedge, from its public positioning as an AI-native specialty insurer serving brokers; none confirmed):
 - Brokers are the main growth channel and a complete submission is the activation event.
@@ -154,11 +178,11 @@ def build_loom(facts: dict[str, str]) -> str:
 | Time | Screen / click | Say |
 |---|---|---|
 | 0:00-0:30 | Dashboard, banner visible | "This is a growth-ops prototype for an AI-native specialty wholesaler. Everything is synthetic: it demonstrates how I would measure and run the broker funnel, not Hedge's real performance." |
-| 0:30-1:30 | `src/bgos/funnel.py`, then the Monday Morning view | "I encoded the funnel as code: lead, ICP, engaged, first complete submission, quoted, bound, repeat. In the synthetic baseline {facts['raw']} leads become {facts['bound']} bound agencies ({facts['bound_pct']}). Stages are strictly nested so the funnel can only taper." |
+| 0:30-1:30 | `src/bgos/funnel.py`, then the Monday Morning view | "I encoded the funnel as code: lead, ICP, engaged, first complete submission, quoted, bound, repeat. In the synthetic baseline {facts['raw']} leads become {facts['bound']} bound agencies so far ({facts['bound_obs_pct']} raw). That raw rate understates conversion because recent leads have not had time to convert; counting only leads old enough to have converted, {facts['bound_pct']} reach a bind. Stages are strictly nested so the funnel can only taper." |
 | 1:30-2:30 | `outputs/data_quality_report.md` | "The raw data is deliberately dirty: duplicates, mixed source labels, impossible dates. Every defect is injected and counted, and cleaning reconciles to the exact injected counts. Tiny sources that show 100% are suppressed, not celebrated." |
-| 2:30-3:30 | Ranked Accounts view | "The fit score is a transparent weighted sum, and every row says why. {facts['tier1']} Tier 1 accounts, {facts['react']} dormant ones to win back. The tier ordering check is a plumbing test: the generator makes conversion depend on fit, so I do not call it predictive." |
-| 3:30-4:30 | Weekly Growth Review, then Source Quality | "North star is qualified submissions from active agencies. Source quality is judged on bind, not lead count: {facts['worst_src']} gives the volume but {facts['best_src']} binds {facts['src_ratio']} better. Activation is {facts['act_rate']} within 14 days, the first gap I would attack." |
-| 4:30-5:30 | Experiments view | "Three experiments with pre-registered rules. ICP targeting: {facts['a_dec']} on a simulated {facts['a_lift']} lift. Onboarding looks positive but is underpowered, so the framework says {facts['b_dec']}, not ship. Say plainly that this is one simulated draw: across {facts['n_seeds']} seeds A ships in {facts['a_ship']}. Reactivation is a planted null and returns {facts['c_dec']}. These are simulated results that demonstrate the method." |
+| 2:30-3:30 | Ranked Accounts view | "The fit score is a transparent weighted sum, and every row says why. Engagement never counts submissions, so customers are not ranked as prospects: {facts['active']} are Active and {facts['react']} dormant to win back. Among prospects, {facts['tier1']} are Tier 1. The check is out-of-sample: scored 90 days earlier using only data available then, Tier 1 prospects converted at {facts['hold_t1']} versus {facts['hold_t3']} for Tier 3. The generator plants that signal, so this validates plumbing, not real predictive power." |
+| 3:30-4:30 | Weekly Growth Review, then Source Quality | "North star is qualified submissions from active agencies. Source quality is judged on mature-cohort bind rate, not lead count: {facts['worst_src']} gives the volume but {facts['best_src']} binds {facts['src_ratio']} better. Activation is {facts['act_rate']} within 14 days, the first gap I would attack." |
+| 4:30-5:30 | Experiments view | "Three experiments sized for the smallest effect I would ship. A: {facts['a_dec']} at {facts['a_lift']}, but the lower confidence bound ({facts['a_lo']}) is below the 20% hurdle, so the rule ships on a point estimate with winner's-curse risk. B: {facts['b_dec']}, underpowered. C cannot be powered at this size, so INCONCLUSIVE is expected. This is one simulated draw: across {facts['n_seeds']} seeds A ships in {facts['a_ship']}. And the dataset was enlarged from about {facts['n_lo']} to {facts['n_hi']} agencies so the 20% rule could be powered: A ships in {facts['ship_1500']} of {facts['n_seeds_n']} seeds at {facts['n_lo']} and {facts['ship_3000']} at {facts['n_hi']}. The number of agencies is the binding constraint on what you can prove." |
 | 5:30-6:30 | `outputs/ai_demo.md` | "The AI layer is human-in-the-loop: research, a deterministic submission-quality score, next-best-action, and email first lines. Drafts always require review and there is no send function anywhere in the code." |
 | 6:30-7:30 | `STRATEGY_MEMO.md` | "First 30 days: establish truth. Join the real CRM and submission data, validate these assumptions about Hedge, lock definitions, baseline every metric. Days 31-60 ship the three experiments; days 61-90 prove lift." |
 

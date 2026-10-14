@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from .rounding import round_df
 from . import funnel
 
 COMPONENTS = list(config.SCORING_WEIGHTS)
@@ -114,8 +115,9 @@ def assign_tier(*, specialty: float, es: float, eng: float, score: float, is_icp
     """Tier precedence (first match wins):
     1. Reactivation: >= 1 complete submission AND last one >= DORMANCY_DAYS ago.
     2. Active: >= 1 complete submission AND last one < DORMANCY_DAYS ago (an existing customer: expand, do not prospect).
-    3. Tier 1 (immediate outbound): ICP AND specialty >= .70 AND E&S activity >= .50 AND engagement >= .40.
-    4. Tier 2 (nurture): ICP AND score >= .45.
+    3. Tier 1 (immediate outbound): ICP AND specialty fit, E&S activity and engagement each at or above their
+       tier1_* thresholds in config.TIER_THRESHOLDS.
+    4. Tier 2 (nurture): ICP AND score at or above config.TIER_THRESHOLDS['tier2_score'].
     5. Tier 3 (monitor): everything else.
     Tiers 1-3 therefore contain PROSPECTS only (no complete submission yet)."""
     th = config.TIER_THRESHOLDS
@@ -219,9 +221,9 @@ def run_score(root: Path | str | None = None) -> pd.DataFrame:
     tc = pd.read_csv(paths.clean / "touches.csv")
     sb = pd.read_csv(paths.clean / "submissions.csv")
     ranked = rank_accounts(score_agencies(ag, tc, sb, config.AS_OF))
-    holdout_conversion_by_tier(ag, tc, sb, config.AS_OF).to_csv(paths.marts / "tier_holdout.csv", index=False)
-    ranked.to_csv(paths.outputs / "ranked_accounts.csv", index=False)
-    ranked.to_csv(paths.marts / "ranked_accounts.csv", index=False)
+    round_df(holdout_conversion_by_tier(ag, tc, sb, config.AS_OF)).to_csv(paths.marts / "tier_holdout.csv", index=False)
+    round_df(ranked).to_csv(paths.outputs / "ranked_accounts.csv", index=False)
+    round_df(ranked).to_csv(paths.marts / "ranked_accounts.csv", index=False)
     conn = sqlite3.connect(paths.db)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("DELETE FROM ranked_accounts")

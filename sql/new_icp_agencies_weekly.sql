@@ -11,6 +11,6 @@ icp AS (
 )
 SELECT w.week_start,
        COALESCE(i.n, 0) AS new_icp_agencies,
-       CASE WHEN date(w.week_start, '+6 days') > date(:as_of) THEN 1 ELSE 0 END AS is_partial_week
+       CASE WHEN date(w.week_start) < date(:window_start) OR date(w.week_start, '+6 days') > date(:as_of) THEN 1 ELSE 0 END AS is_partial_week
 FROM weeks w LEFT JOIN icp i ON i.week_start = w.week_start
 ORDER BY w.week_start;

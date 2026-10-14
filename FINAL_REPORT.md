@@ -72,3 +72,20 @@ Phase 10 verification: `.venv` deleted and recreated with `make setup`; `data/` 
 5. **Push to GitHub and deploy the dashboard** following [DEPLOY.md](DEPLOY.md) (nothing was pushed or deployed).
 6. **Verify every number before quoting it** to Hedge or anyone else, and never present synthetic numbers as Hedge's. Validate each assumption in the memo against real data before building on it.
 7. Decide whether the generous synthetic funnel (D10) is acceptable for the story you want to tell, or lower it and accept that Experiment A will then show as underpowered.
+
+## Final pass (credibility layer)
+
+The core was frozen: `tests/test_golden_core.py` asserts the seed-42 values (A 394/1,221 vs 504/1,245, +25.45%, p = 2.2567e-05, 862 required, SHIP; B 295/801 vs 349/822, p = 0.020492, 2,744, ITERATE; C 33/147 vs 28/147, p = 0.472068, 940, INCONCLUSIVE; Tier 24 / 706 / 1,193 / 672 / 405; funnel 3,000 / 2,282 / 1,695 / 1,077 / 1,033 / 466 / 343; mature lead-to-bound 21.70% vs observed 15.53%; holdout 9/32, 62/531, 5/885) and passed after every stage.
+
+| Stage | What changed |
+|---|---|
+| 1 Deployment truth | Could not reproduce the stale `memo.html` (single branch, Pages source `main` `/docs`, latest build equals HEAD, live fetch consistent): probable CDN edge inconsistency. Added a data fingerprint (as-of, seed, agency count) to both page footers, a CI step that fails if committed pages differ from a regeneration, and `scripts/verify_live.py`. |
+| 2 Determinism | 10-significant-digit output rounding (statistics stay full precision); exact pins; byte-identical regeneration across two processes and, additionally, under Python 3.14.6 (3.13 was not available locally). |
+| 3 Experiment reporting | C leads with absolute lift, reports the minimum detectable effect at 80% power for its n, and states it cannot be powered. A gets a labelled observational ICP vs non-ICP panel. |
+| 4 Dataset size | `make sweep-n` (20 seeds at 1,500 / 2,000 / 3,000): Experiment A ships in 0 / 2 / 19 of 20 seeds. Disclosed in the README, memo, Loom script and both front ends. |
+| 5 Documentation | README audit history, AUDIT_REPORT second audit (with Tier 1 threshold sensitivity 23% / 28% / 35% and score AUC 0.84, both re-computed here), honest Loom script, docstrings refer to config. |
+| 6 Small items | Leading partial week flagged, seven-stage header strip with mature and observed lead-to-bound, inline favicon, repo-local no-reply commit email for new commits (history not rewritten). |
+| 7 Verification | Fresh clone, pinned install: `make all` clean (no diff in committed pages), 250 tests passed twice (251 after the final test was added and run), random order (2 seeds), hash seeds 0 and 1, `-W error`. Ten deliberately broken versions: all caught; one (wrong power passed to the MDE) was initially caught only indirectly, so a dedicated test was added. Independent recomputation (own SQL and scipy, not project code) of A, B, C including absolute lifts, MDEs and the ICP split matched. Browser sweep with local headless Chromium: 212 interactions across all nine tabs, no console errors, no `NaN`/`undefined`/`null` text, no horizontal scroll at 390 px, no 404 (favicon). |
+
+Not verifiable here: Python 3.13; the external re-audit's own figures (204 interactions, two mutants) are quoted from that review, not re-run.
+
