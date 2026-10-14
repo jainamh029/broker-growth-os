@@ -206,3 +206,148 @@ def test_icp_split_is_labelled_observational_on_both_front_ends(built, monkeypat
     at.sidebar.radio[0].set_value("Experiments").run()
     assert any("Observational panel (not an experiment)" in m.value for m in at.markdown)
     assert any("Observational, not an experiment" in m.value for m in at.markdown)
+
+
+# ---- Stage 4: dataset-size disclosure and sensitivity (B-25) ----------------------------------------------------------------
+import json  # noqa: E402
+
+
+def _nsd():
+    return json.loads((ROOT / "docs" / "n_sensitivity.json").read_text())
+
+
+def test_n_sensitivity_file_structure_and_internal_consistency():
+    d = _nsd()
+    assert config.N_TRUE_AGENCIES == 3000  # the default N is not changed by the sensitivity sweep
+    assert d["seeds"] == list(range(1, 21)) and sorted(d["summary"]) == ["1500", "2000", "3000"]
+    for n, seeds in d["per_seed"].items():
+        assert len(seeds) == 20
+        for k in "ABC":
+            counts = {}
+            for v in seeds.values():
+                counts[v[k]["decision"]] = counts.get(v[k]["decision"], 0) + 1
+            assert counts == d["summary"][n][k]["decisions"], (n, k)
+            assert d["summary"][n][k]["mean_achieved_per_arm"] == round(sum(v[k]["n_per_arm"] for v in seeds.values()) / 20)
+    # more agencies can only help A reach the sample it needs
+    a = {n: d["summary"][n]["A"]["mean_achieved_per_arm"] for n in d["summary"]}
+    assert a["1500"] < a["2000"] < a["3000"]
+    assert d["summary"]["1500"]["A"]["mean_required_per_arm"] > d["summary"]["1500"]["A"]["mean_achieved_per_arm"]  # underpowered at 1,500
+
+
+def test_n_sensitivity_file_matches_a_rerun_of_two_seeds_at_1500():
+    from bgos import sweep
+    d = _nsd()
+    for sd in (1, 2):
+        assert d["per_seed"]["1500"][str(sd)] == sweep.run_one(sd, n_agencies=1500, extended=True)
+
+
+def test_page_and_streamlit_show_the_same_counts_as_the_json(built, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    from bgos import insights
+    d = _nsd()
+    rows = insights.n_sensitivity_rows(d)
+    data = json.loads(re.search(r'<script id="data" type="application/json">(.*?)</script>', built["home"], re.S).group(1))
+    assert data["n_sens"] == rows and data["n_sens_seeds"] == 20 and data["n_sens_take"] == insights.takeaway_n_sensitivity(d)
+    monkeypatch.setenv("BGOS_ROOT", str(built["root"]))
+    at = AppTest.from_file(str(ROOT / "app" / "dashboard.py"), default_timeout=120).run()
+    at.sidebar.radio[0].set_value("Experiments").run()
+    shown = [df.value for df in at.dataframe if "ship" in df.value.columns]
+    assert len(shown) == 1 and shown[0][["agencies", "experiment", "ship", "iterate", "inconclusive"]].values.tolist() == \
+        [[r["agencies"], r["experiment"], r["ship"], r["iterate"], r["inconclusive"]] for r in rows]
+
+
+def test_disclosure_sentence_in_readme_memo_loom_with_json_counts(built):
+    d = _nsd()
+    x, y, z = (d["summary"][n]["A"]["decisions"].get("SHIP", 0) for n in ("1500", "2000", "3000"))
+    readme = (ROOT / "README.md").read_text()
+    assert f"At 1,500 agencies Experiment A ships in {x} of 20 simulated seeds; at 2,000, {y}; at 3,000, {z}." in readme
+    memo, loom = (built["root"] / "STRATEGY_MEMO.md").read_text(), (built["root"] / "LOOM_SCRIPT.md").read_text()
+    for t in (memo, loom):
+        assert "enlarged from about 1,500" in t and "binding constraint on what" in t and "3,000" in t
+        assert f"{x} of 20" in t and f"{z}" in t
+    assert len(memo.split()) < 550
+
+
+# ---- Stage 5: documentation honesty (B-26) ------------------------------------------------------------------------------------
+CURRENT_DOCS = ["STRATEGY_MEMO.md", "LOOM_SCRIPT.md", "DATA_DICTIONARY.md", "DEPLOY.md", "docs/index.html", "docs/memo.html", "app/dashboard.py"]
+
+
+def _current_texts():
+    out = {f: (ROOT / f).read_text() for f in CURRENT_DOCS}
+    for f in (ROOT / "src").rglob("*.py"):
+        out[str(f.relative_to(ROOT))] = f.read_text()
+    return out
+
+
+def test_no_stale_figures_in_current_docs_or_code():
+    allowed_1500 = ("enlarged from", "At 1,500", "at 1,500", "about 1,500", "N = 1,500", "1,500, 2,000")
+    for name, text in _current_texts().items():
+        for pat in (r"37\.5%", r"13\.9%", r"achieved power", r"Achieved power"):
+            assert not re.search(pat, text), (name, pat)
+        for line in text.splitlines():
+            if "1,500" in line:
+                assert any(a in line for a in allowed_1500), (name, line[:120])
+
+
+def test_threshold_numbers_in_text_match_config():
+    t = config.TIER_THRESHOLDS
+    pat = re.compile(r"engagement\s*(?:>=|>|at least|of at least)\s*(\.?\d*\.\d+)", re.I)
+    files = ["README.md", "STRATEGY_MEMO.md", "DATA_DICTIONARY.md", "src/bgos/scoring.py", "src/bgos/schema.py", "src/bgos/funnel.py", "config.py"]
+    for f in files:
+        for m in pat.finditer((ROOT / f).read_text()):
+            assert float(m.group(1)) == t["tier1_engagement"], (f, m.group(0))
+    doc = __import__("bgos.scoring", fromlist=["x"]).assign_tier.__doc__
+    assert "config.TIER_THRESHOLDS" in doc and not re.search(r"[>=]=?\s*\.\d", doc)  # docstring refers to config, no copied numbers
+
+
+def test_readme_has_audit_history_with_numbers_from_outputs(built):
+    readme = (ROOT / "README.md").read_text()
+    assert "## Audit history" in readme
+    for needle in ("Circular scoring", "Immature cohorts", "sized for +30% but shipped at +20%", "Post-hoc", "planted effect was diluted", "stale deployed memo"):
+        assert needle in readme, needle
+    r = built["root"]
+    h = pd.read_csv(r / "data" / "marts" / "tier_holdout.csv").set_index("tier")
+    f = pd.read_csv(r / "data" / "marts" / "funnel_counts.csv").set_index("stage")
+    e = pd.read_csv(r / "data" / "marts" / "experiment_results.csv").set_index("experiment_id")
+    rate = lambda t: f"{h.loc[t, 'converted'] / h.loc[t, 'prospects'] * 100:.1f}%"
+    for needle in (f"Tier 1 {rate('Tier 1')}, Tier 2 {rate('Tier 2')}, Tier 3 {rate('Tier 3')}",
+                   f"{f.loc['bound', 'mature_cumulative_conversion'] * 100:.1f}% mature ({f.loc['bound', 'observed_cumulative_conversion'] * 100:.1f}% observed)",
+                   f"{int(e.loc['A', 'n_required_per_arm'])} per arm required, {int(e.loc['A', 'n_control']):,} available",
+                   f"{e.loc['A', 'power_at_mde'] * 100:.0f}%"):
+        assert needle in readme, needle
+
+
+def test_threshold_sensitivity_and_auc_claims_are_reproduced(clean_result, monkeypatch):
+    from scipy.stats import rankdata
+
+    from bgos import scoring
+    ag, tc, sb = clean_result.agencies, clean_result.touches, clean_result.submissions
+    rates = {}
+    for th in (0.10, 0.20, 0.30):
+        monkeypatch.setitem(config.TIER_THRESHOLDS, "tier1_engagement", th)
+        h = scoring.holdout_conversion_by_tier(ag, tc, sb).set_index("tier")
+        rates[th] = (h.loc["Tier 1", "converted"] / h.loc["Tier 1", "prospects"], h.loc["Tier 2", "converted"] / h.loc["Tier 2", "prospects"], int(h.loc["Tier 1", "prospects"]))
+    for th, (t1, t2, n) in rates.items():
+        assert 1.8 <= t1 / t2 <= 3.4 and n < 60, (th, t1, t2, n)  # always roughly twice Tier 2 (or more); small n, so wide intervals
+    assert [round(rates[t][0] * 100) for t in (0.10, 0.20, 0.30)] == [23, 28, 35]
+    monkeypatch.setitem(config.TIER_THRESHOLDS, "tier1_engagement", 0.20)
+    cutoff = pd.Timestamp(config.AS_OF) - pd.Timedelta(days=config.HOLDOUT_DAYS)
+    comp = sb[sb.is_complete == 1].assign(d=lambda d: pd.to_datetime(d.submitted_at).dt.normalize())
+    pool = ag[(pd.to_datetime(ag.first_touch_date) <= cutoff) & ~ag.agency_id.isin(set(comp[comp.d <= cutoff].agency_id))]
+    sc = scoring.score_agencies(pool, tc, sb, cutoff)
+    y = sc.agency_id.isin(set(comp[(comp.d > cutoff) & (comp.d <= pd.Timestamp(config.AS_OF))].agency_id)).to_numpy()
+    rk = rankdata(sc.score.to_numpy())
+    auc = (rk[y].sum() - y.sum() * (y.sum() + 1) / 2) / (y.sum() * (len(y) - y.sum()))
+    assert round(auc, 2) == 0.84
+    rep = (ROOT / "AUDIT_REPORT.md").read_text()
+    assert "23% / 28% / 35%" in rep and "0.84" in rep and "generator plants that signal" in rep and "Second audit" in rep
+
+
+def test_loom_tells_the_honest_story(built):
+    loom = (built["root"] / "LOOM_SCRIPT.md").read_text()
+    for needle in ("old enough to have converted", "out-of-sample", "lower confidence bound", "below the 20% hurdle", "B: ITERATE", "cannot be powered at this size",
+                   "enlarged from about 1,500 to 3,000", "binding constraint", "validates plumbing, not real predictive power", "Engagement never counts submissions"):
+        assert needle in loom, needle
+    stamps = re.findall(r"\|\s*(\d+):(\d\d)-(\d+):(\d\d)\s*\|", loom)
+    assert int(stamps[-1][2]) * 60 + int(stamps[-1][3]) <= 8 * 60
