@@ -267,6 +267,10 @@ V.experiments = function () {
   ${table(D.icp_split, [{k: 'is_icp', l: 'Group', f: v => v ? 'ICP' : 'non-ICP'}, {k: 'n', l: 'n'}, {k: 'x', l: 'First submissions'}, {k: 'rate', l: 'Rate', f: v => pct(v)}, {k: 'ci_low', l: '95% Wilson low', f: v => pct(v)}, {k: 'ci_high', l: '95% Wilson high', f: v => pct(v)}])}${take(D.icp_take)}
   <h3>Decision rates across ${S.n_seeds} simulated seeds</h3><div class="tw"><table><thead><tr><th>Experiment</th><th>SHIP</th><th>ITERATE</th><th>INCONCLUSIVE</th><th>Significant (p&lt;0.05)</th><th>Mean lift</th></tr></thead><tbody>
   ${['A', 'B', 'C'].map(k => `<tr><td>${k}</td><td>${S[k].decisions.SHIP || 0}</td><td>${S[k].decisions.ITERATE || 0}</td><td>${S[k].decisions.INCONCLUSIVE || 0}</td><td>${S[k]['significant_p_lt_0.05']}</td><td>${pct(S[k].mean_rel_lift)}</td></tr>`).join('')}</tbody></table></div>
+  <h3>How many agencies does it take? (sensitivity to dataset size)</h3>${take(D.n_sens_take)}
+  <div class="tw"><table><thead><tr><th>Agencies</th><th>Experiment</th><th>SHIP</th><th>ITERATE</th><th>INCONCLUSIVE</th><th>Mean required per arm</th><th>Mean achieved per arm</th></tr></thead><tbody>
+  ${D.n_sens.map(r => `<tr><td>${fmt(r.agencies)}</td><td>${r.experiment}</td><td>${r.ship}</td><td>${r.iterate}</td><td>${r.inconclusive}</td><td>${fmt(r.mean_required)}</td><td>${fmt(r.mean_achieved)}</td></tr>`).join('')}</tbody></table></div>
+  <p class="small">Decisions out of ${D.n_sens_seeds} simulated seeds per row. Experiment A is sized for its 20% ship threshold; B and C are underpowered at every size shown.</p>
   <h3>Sample-size calculator</h3><p class="small">How many agencies per arm would a real test need? Same two-proportion formula as the framework.</p>
   <div class="card"><div class="calc"><div><label for="c-base">Baseline rate: <b id="o-base"></b></label><input id="c-base" type="range" min="2" max="60" value="10"></div>
   <div><label for="c-lift">Relative lift to detect: <b id="o-lift"></b></label><input id="c-lift" type="range" min="5" max="60" value="20"></div>
@@ -313,6 +317,7 @@ def build_data(root: Path | str | None = None) -> dict:
     act, coh, ttq, dor, pp = m("activation_rate"), m("cohort_retention"), m("time_to_quote"), m("dormant_reactivation"), m("pipeline_projection")
     ranked = pd.read_csv(paths.marts / "ranked_accounts.csv")
     sweep = json.loads((config.ROOT / "docs" / "seed_sweep.json").read_text())["summary"]
+    n_doc = json.loads((config.ROOT / "docs" / "n_sensitivity.json").read_text())
     exps = []
     for _, r in ex.iterrows():
         exps.append(dict(id=r.experiment_id, name=r["name"], decision=r.decision, rate_control=r.rate_control, rate_treatment=r.rate_treatment, rel_lift=r.rel_lift,
@@ -330,6 +335,7 @@ def build_data(root: Path | str | None = None) -> dict:
         "ranked": _records(ranked, ["name", "score", "tier", "next_action", "owner", "channel", "reason", "state", "action"]),
         "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")), "icp_split": _records(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
         "icp_take": ins.takeaway_icp_split(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
+        "n_sens": ins.n_sensitivity_rows(n_doc), "n_sens_take": ins.takeaway_n_sensitivity(n_doc), "n_sens_seeds": len(n_doc["seeds"]),
         "takeaways": {"funnel": ins.takeaway_funnel(f), "north_star": ins.takeaway_north_star(wk), "sources": ins.takeaway_sources(sq), "ttq": ins.takeaway_ttq(ttq),
                       "activation": ins.takeaway_activation(act, coh), "dormant": ins.takeaway_dormant(dor), "pipeline": ins.takeaway_pipeline(pp), "ranked": ins.takeaway_ranked(ranked)},
     }

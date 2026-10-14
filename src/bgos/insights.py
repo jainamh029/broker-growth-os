@@ -108,3 +108,22 @@ def takeaway_icp_split(d: pd.DataFrame) -> str:
     a = d.set_index("is_icp")
     return (f"Observational, not an experiment: in the control arm, ICP agencies reached a first submission at {pct(a.loc[1, 'rate'])} versus {pct(a.loc[0, 'rate'])} for non-ICP agencies "
             f"(n = {int(a.loc[1, 'n']):,} and {int(a.loc[0, 'n']):,}). Experiment A tests the v2 sequence against v1, not the ICP definition.")
+
+
+def n_sensitivity_rows(doc: dict) -> list[dict]:
+    rows = []
+    for n, exps in doc["summary"].items():
+        for k in "ABC":
+            d = exps[k]["decisions"]
+            rows.append({"agencies": int(n), "experiment": k, "ship": d.get("SHIP", 0), "iterate": d.get("ITERATE", 0), "inconclusive": d.get("INCONCLUSIVE", 0),
+                         "mean_required": exps[k]["mean_required_per_arm"], "mean_achieved": exps[k]["mean_achieved_per_arm"]})
+    return rows
+
+
+def takeaway_n_sensitivity(doc: dict) -> str:
+    seeds = len(doc["seeds"])
+    a = {int(n): v["A"]["decisions"].get("SHIP", 0) for n, v in doc["summary"].items()}
+    ns = sorted(a)
+    parts = [f"{'at' if i == 0 else 'at'} {n:,}, {a[n]}" for i, n in enumerate(ns)]
+    return (f"At {ns[0]:,} agencies Experiment A ships in {a[ns[0]]} of {seeds} simulated seeds; " + "; ".join(f"at {n:,}, {a[n]}" for n in ns[1:]) +
+            ". The dataset was enlarged from the brief's about 1,500 agencies so the 20% ship rule could be powered; in a real launch the number of agencies is the binding constraint on what can be proven.")

@@ -357,6 +357,14 @@ def view_experiments():
                  column_config={"rate": st.column_config.NumberColumn("rate", format="percent"), "ci_low": st.column_config.NumberColumn("95% Wilson low", format="percent"),
                                 "ci_high": st.column_config.NumberColumn("95% Wilson high", format="percent")})
     takeaway(ins.takeaway_icp_split(split))
+    nsp = ROOT / "docs" / "n_sensitivity.json"
+    if nsp.exists():
+        nsd = json.loads(nsp.read_text())
+        st.markdown("### How many agencies does it take? (sensitivity to dataset size)")
+        st.caption(ins.takeaway_n_sensitivity(nsd))
+        st.dataframe(pd.DataFrame(ins.n_sensitivity_rows(nsd)), hide_index=True, width="stretch",
+                     column_config={"agencies": "Agencies", "experiment": "Experiment", "ship": "SHIP", "iterate": "ITERATE", "inconclusive": "INCONCLUSIVE",
+                                    "mean_required": "Mean required per arm", "mean_achieved": "Mean achieved per arm"})
     st.markdown("### Sample-size calculator")
     st.caption("How many agencies per arm would a real test need? Uses the same two-proportion formula as the framework.")
     k = st.columns(4)

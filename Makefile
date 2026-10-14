@@ -2,7 +2,7 @@
 PY ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 export PYTHONPATH := $(CURDIR)/src:$(CURDIR)
 
-.PHONY: setup data clean score metrics experiments ai-demo docs sweep dashboard test all reset
+.PHONY: setup data clean score metrics experiments ai-demo docs sweep sweep-n dashboard test all reset
 
 setup:
 	python3 -m venv .venv
@@ -32,6 +32,9 @@ docs:        ## DATA_DICTIONARY.md and memo numbers from generated outputs
 
 sweep:       ## 40-seed decision-rate sweep -> docs/seed_sweep.json (slow, about 10 minutes)
 	"$(PY)" -m bgos.cli sweep
+
+sweep-n:     ## N-sensitivity: 20 seeds each at N = 1500, 2000, 3000 -> docs/n_sensitivity.json (slow, about 10 minutes)
+	"$(PY)" -m bgos.cli sweep-n
 
 dashboard:
 	"$(PY)" -m streamlit run app/dashboard.py
