@@ -122,3 +122,87 @@ def test_requirements_are_exactly_pinned_and_match_the_tested_environment():
         name, ver = p.split("==")
         assert md.version(name) == ver, f"{name}: installed {md.version(name)} != pinned {ver}"
     assert re.search(r"Tested with Python 3\.12", (ROOT / "README.md").read_text())
+
+
+# ---- Stage 3: Experiment C and A reporting (B-23, B-24) ---------------------------------------------------------------------
+STATEMENT = "Experiment C cannot be powered at this size; INCONCLUSIVE is expected."
+
+
+def test_mde_matches_statsmodels_and_power_definition():
+    import math
+
+    from statsmodels.stats.power import NormalIndPower
+
+    from bgos import experiments as ex
+    for p1, n in [(0.2245, 147), (0.30, 500), (0.10, 2000)]:
+        m = ex.minimum_detectable_effect(p1, n)
+        assert ex.achieved_power(p1, m["p2"], n, n) == pytest.approx(0.80, abs=1e-6)
+        h = NormalIndPower().solve_power(effect_size=None, nobs1=n, alpha=0.05, power=0.80, ratio=1.0)
+        p2_arcsine = math.sin(math.asin(math.sqrt(p1)) + h / 2) ** 2
+        assert m["p2"] == pytest.approx(p2_arcsine, abs=0.006)
+        assert m["abs"] == pytest.approx(m["p2"] - p1) and m["rel"] == pytest.approx(m["p2"] / p1 - 1)
+    assert ex.minimum_detectable_effect(0.5, 5)["abs"] != ex.minimum_detectable_effect(0.5, 5)["abs"]  # NaN when unreachable
+
+
+def test_c_headline_is_absolute_and_decision_unchanged(built):
+    r = pd.read_csv(built["root"] / "data" / "marts" / "experiment_results.csv").set_index("experiment_id").loc["C"].copy()
+    r["experiment_id"] = "C"
+    assert r.decision == "INCONCLUSIVE" and r.abs_lift == pytest.approx(28 / 147 - 33 / 147)
+    assert r.mde_abs_at_n > abs(r.abs_lift) and r.mde_abs_at_n > 0.10  # nothing near this size could have been detected
+    from bgos import insights
+    t = insights.takeaway_experiment(r)
+    assert t.index("absolute lift") < t.index("INCONCLUSIVE is expected") and STATEMENT in t
+    assert "relative lift" not in t.split("INCONCLUSIVE is expected")[0]
+
+
+def test_c_card_shows_absolute_lift_first_in_streamlit(built, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    monkeypatch.setenv("BGOS_ROOT", str(built["root"]))
+    at = AppTest.from_file(str(ROOT / "app" / "dashboard.py"), default_timeout=120).run()
+    at.sidebar.radio[0].set_value("Experiments").run()
+    assert not at.exception
+    labels = [m.label for m in at.metric]
+    assert labels.count("Absolute lift (points)") == 1 and labels.count("Relative lift") == 2  # only C leads with absolute
+    c_start = labels.index("Absolute lift (points)")
+    assert labels[c_start - 1] == "Decision" and "Detectable lift at 80% power (points)" in labels
+    assert any(STATEMENT in i.value for i in at.info)
+    assert [m.value for m in at.metric if m.label == "Decision"] == ["SHIP", "ITERATE", "INCONCLUSIVE"]
+
+
+def test_statement_present_in_site_readme_memo(built):
+    for text in (built["home"], (ROOT / "README.md").read_text(), (built["root"] / "STRATEGY_MEMO.md").read_text()):
+        assert "cannot be powered at this size" in text and "INCONCLUSIVE is expected" in text
+
+
+def test_readme_c_numbers_match_marts(built):
+    e = pd.read_csv(built["root"] / "data" / "marts" / "experiment_results.csv").set_index("experiment_id").loc["C"]
+    readme = (ROOT / "README.md").read_text()
+    assert f"{int(min(e.n_control, e.n_treatment))} agencies per arm against {int(e.n_required_per_arm)} required" in readme
+
+
+def test_icp_split_matches_independent_pandas_and_wilson(built, clean_tables):
+    from statsmodels.stats.proportion import proportion_confint
+    ag, sb, asg = clean_tables["agencies"], clean_tables["submissions"], clean_tables["assignments"]
+    a = asg[(asg.experiment_id == "A") & (asg.arm == "control")]
+    a = a[a.assigned_at + pd.Timedelta(days=config.A_OUTCOME_DAYS) <= pd.Timestamp(config.AS_OF)]
+    comp = sb[sb.is_complete == 1].groupby("agency_id").submitted_at.min().dt.normalize()
+    first = a.agency_id.map(comp)
+    won = (first >= a.assigned_at) & (first <= a.assigned_at + pd.Timedelta(days=config.A_OUTCOME_DAYS))
+    icp = a.agency_id.map(ag.set_index("agency_id").is_icp)
+    got = pd.read_csv(built["root"] / "data" / "marts" / "experiment_a_icp_split.csv").set_index("is_icp")
+    for flag in (1, 0):
+        n, x = int((icp == flag).sum()), int(won[icp == flag].sum())
+        assert (got.loc[flag, "n"], got.loc[flag, "x"]) == (n, x)
+        lo, hi = proportion_confint(x, n, alpha=0.05, method="wilson")
+        assert got.loc[flag, "ci_low"] == pytest.approx(lo, abs=1e-8) and got.loc[flag, "ci_high"] == pytest.approx(hi, abs=1e-8)
+    assert got.n.sum() == 1221  # equals Experiment A's control arm
+
+
+def test_icp_split_is_labelled_observational_on_both_front_ends(built, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    assert "Observational panel (not an experiment)" in built["home"] and "icp_split" in built["home"]
+    monkeypatch.setenv("BGOS_ROOT", str(built["root"]))
+    at = AppTest.from_file(str(ROOT / "app" / "dashboard.py"), default_timeout=120).run()
+    at.sidebar.radio[0].set_value("Experiments").run()
+    assert any("Observational panel (not an experiment)" in m.value for m in at.markdown)
+    assert any("Observational, not an experiment" in m.value for m in at.markdown)

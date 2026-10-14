@@ -142,12 +142,11 @@ def build_memo(facts: dict[str, str]) -> str:
 1. Activation: only {facts['act_rate']} of engaged agencies send a complete submission within 14 days. Each +10 points adds about {facts['act_gain']} first submissions on this book.
 2. Source mix: {facts['worst_src']} supplies {facts['worst_share']} of leads but binds {facts['worst_rate']} of them, versus {facts['best_rate']} for {facts['best_src']} ({facts['src_ratio']}). Moving 10% of lead volume to {facts['best_src']}-quality sources adds roughly {facts['src_gain']} bound agencies (back-of-envelope; assumes that channel scales).
 
-Watch metric: median time to quote is {facts['ttq']} hours; protect it while volume grows.
 
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.
 - Days 31-60, ship experiments: ICP-targeted outbound, submission-ready onboarding, and reactivation versus a holdout, each with a pre-registered effect size, sample size and decision rule.
-- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation was {facts['c_dec']}. This is one simulated draw: across {facts['n_seeds']} simulated seeds, A ships in {facts['a_ship']}, B in {facts['b_ship']}, and C shows a spurious significant result in {facts['c_sig']}. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
+- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned {facts['a_dec']} ({facts['a_lift']}, 95% CI {facts['a_lo']} to {facts['a_hi']}), onboarding was {facts['b_dec']} (underpowered: {facts['b_n_have']} per arm versus {facts['b_n_need']} needed), reactivation (C) {facts['c_dec']}: it cannot be powered at this size, so INCONCLUSIVE is expected. This is one simulated draw: across {facts['n_seeds']} simulated seeds, A ships in {facts['a_ship']}, B in {facts['b_ship']}, and C shows a spurious significant result in {facts['c_sig']}. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
 
 **Assumptions to validate in the first 30 days** (about Hedge, from its public positioning as an AI-native specialty insurer serving brokers; none confirmed):
 - Brokers are the main growth channel and a complete submission is the activation event.

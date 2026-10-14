@@ -12,12 +12,11 @@
 1. Activation: only 38% of engaged agencies send a complete submission within 14 days. Each +10 points adds about 170 first submissions on this book.
 2. Source mix: linkedin supplies 30% of leads but binds 11.7% of them, versus 35.6% for referral (3.1x). Moving 10% of lead volume to referral-quality sources adds roughly 72 bound agencies (back-of-envelope; assumes that channel scales).
 
-Watch metric: median time to quote is 34 hours; protect it while volume grows.
 
 **90-day plan.**
 - Days 1-30, establish truth: join CRM and submission data at agency level, lock stage definitions, deduplicate, baseline every metric with minimum-n rules.
 - Days 31-60, ship experiments: ICP-targeted outbound, submission-ready onboarding, and reactivation versus a holdout, each with a pre-registered effect size, sample size and decision rule.
-- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned SHIP (+25.5%, 95% CI +12.9% to +39.4%), onboarding was ITERATE (underpowered: 801 per arm versus 2,744 needed), reactivation was INCONCLUSIVE. This is one simulated draw: across 40 simulated seeds, A ships in 37, B in 0, and C shows a spurious significant result in 3. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
+- Days 61-90, prove lift: ship only what clears its rule. In simulation, ICP targeting returned SHIP (+25.5%, 95% CI +12.9% to +39.4%), onboarding was ITERATE (underpowered: 801 per arm versus 2,744 needed), reactivation (C) INCONCLUSIVE: it cannot be powered at this size, so INCONCLUSIVE is expected. This is one simulated draw: across 40 simulated seeds, A ships in 37, B in 0, and C shows a spurious significant result in 3. Running three experiments at once raises false-positive risk (multiple comparisons); a real programme would pre-register one primary. Real baselines will differ.
 
 **Assumptions to validate in the first 30 days** (about Hedge, from its public positioning as an AI-native specialty insurer serving brokers; none confirmed):
 - Brokers are the main growth channel and a complete submission is the activation event.

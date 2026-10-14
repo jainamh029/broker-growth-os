@@ -263,6 +263,8 @@ V.experiments = function () {
   const e = D.experiments, S = D.sweep;
   view.innerHTML = `<h2>Experiments</h2><div class="banner"><b>SIMULATED results on synthetic data.</b> They demonstrate the method; the generator planted the effects (A +30%, B +15%, C 0).</div>
   <p class="small">${esc(D.meta.exp_note)}</p><div class="ctl">${seg('et', e.map(r => [r.id, r.id + ': ' + r.name]), e[0].id)}</div><div id="ecard"></div><div id="fig-exp"></div>
+  <h3>Observational panel (not an experiment)</h3><p class="small">First-submission rate of ICP vs non-ICP agencies within Experiment A's control arm, same outcome window and mature-only rule. The generator never lets non-ICP agencies submit, so on synthetic data this contrast holds by construction.</p>
+  ${table(D.icp_split, [{k: 'is_icp', l: 'Group', f: v => v ? 'ICP' : 'non-ICP'}, {k: 'n', l: 'n'}, {k: 'x', l: 'First submissions'}, {k: 'rate', l: 'Rate', f: v => pct(v)}, {k: 'ci_low', l: '95% Wilson low', f: v => pct(v)}, {k: 'ci_high', l: '95% Wilson high', f: v => pct(v)}])}${take(D.icp_take)}
   <h3>Decision rates across ${S.n_seeds} simulated seeds</h3><div class="tw"><table><thead><tr><th>Experiment</th><th>SHIP</th><th>ITERATE</th><th>INCONCLUSIVE</th><th>Significant (p&lt;0.05)</th><th>Mean lift</th></tr></thead><tbody>
   ${['A', 'B', 'C'].map(k => `<tr><td>${k}</td><td>${S[k].decisions.SHIP || 0}</td><td>${S[k].decisions.ITERATE || 0}</td><td>${S[k].decisions.INCONCLUSIVE || 0}</td><td>${S[k]['significant_p_lt_0.05']}</td><td>${pct(S[k].mean_rel_lift)}</td></tr>`).join('')}</tbody></table></div>
   <h3>Sample-size calculator</h3><p class="small">How many agencies per arm would a real test need? Same two-proportion formula as the framework.</p>
@@ -271,7 +273,12 @@ V.experiments = function () {
   <div><label for="c-alpha">Alpha</label><select id="c-alpha"><option value="1.6449">0.10</option><option value="1.96" selected>0.05</option><option value="2.5758">0.01</option></select></div>
   <div><label for="c-power">Power</label><select id="c-power"><option value="0.8416" selected>80%</option><option value="1.2816">90%</option><option value="1.6449">95%</option></select></div></div>
   <p>Required per arm: <span class="result" id="o-n" aria-live="polite"></span> &nbsp; Total: <b id="o-tot"></b></p></div>`;
-  const card = id => { const r = e.find(x => x.id === id); $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}.</p>
+  const card = id => { const r = e.find(x => x.id === id), c = r.id === 'C';
+    const head = c ? `Absolute lift <b>${(r.abs_lift * 100).toFixed(1)} points</b> (95% CI ${(r.abs_low * 100).toFixed(1)} to ${(r.abs_high * 100).toFixed(1)}), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}. Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}.
+      <br><b>Experiment C cannot be powered at this size; INCONCLUSIVE is expected.</b> At ${fmt(Math.min(r.n_control, r.n_treatment))} per arm only a lift of ${(r.mde_abs * 100).toFixed(1)} points (${(r.mde_rel * 100).toFixed(0)}% relative) or more is detectable at 80% power.
+      <br><span class="small">Secondary: relative lift ${(r.rel_lift * 100).toFixed(1)}% (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%).</span>`
+      : `Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}.`;
+    $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>${head}</p>
     <div class="bar"><span style="width:${Math.min(100, 100 * Math.min(r.n_control, r.n_treatment) / r.n_required)}%"></span></div><p class="small">Sample: ${fmt(Math.min(r.n_control, r.n_treatment))} per arm of ${fmt(r.n_required)} required. Power at the pre-registered ${(r.mde * 100).toFixed(0)}% lift: ${pct(r.power, 0)}.${r.ci_clears ? '' : ' The lower CI bound (' + (r.ci_low * 100).toFixed(1) + '%) is below the ' + (r.mde * 100).toFixed(0) + '% ship threshold; the rule ships on the point estimate (winner\'s-curse risk).'} Planted truth: ${(r.planted * 100).toFixed(0)}%. Simulated.</p>${take(r.take)}</div>`; };
   card(e[0].id); onSeg('et', card);
   const labs = e.map(r => r.id + ': ' + r.name + ' (' + r.decision + ')');
@@ -310,6 +317,7 @@ def build_data(root: Path | str | None = None) -> dict:
     for _, r in ex.iterrows():
         exps.append(dict(id=r.experiment_id, name=r["name"], decision=r.decision, rate_control=r.rate_control, rate_treatment=r.rate_treatment, rel_lift=r.rel_lift,
                          ci_low=r.rel_ci_low, ci_high=r.rel_ci_high, p_value=r.p_value, n_control=int(r.n_control), n_treatment=int(r.n_treatment),
+                         abs_lift=r.abs_lift, abs_low=r.abs_ci_low, abs_high=r.abs_ci_high, mde_abs=r.mde_abs_at_n, mde_rel=r.mde_rel_at_n,
                          n_required=int(r.n_required_per_arm), power=r.power_at_mde, mde=r.mde_relative, ci_clears=bool(r.ci_low_clears_ship), planted=r.planted_true_lift, take=ins.takeaway_experiment(r)))
     note = ("Each result below is one simulated draw. Running three experiments at once carries a multiple comparisons risk; no alpha adjustment is applied. "
             f"Across {sweep['n_seeds']} simulated seeds: A ships in {sweep['A']['decisions'].get('SHIP', 0)}, B in {sweep['B']['decisions'].get('SHIP', 0)}, "
@@ -320,7 +328,8 @@ def build_data(root: Path | str | None = None) -> dict:
         "topline": _records(tl)[0], "funnel": _records(f), "sources": _records(sq), "weekly": _records(wk), "ttq": _records(ttq),
         "activation": _records(act), "cohorts": _records(coh), "dormant": _records(dor), "pipeline": _records(pp),
         "ranked": _records(ranked, ["name", "score", "tier", "next_action", "owner", "channel", "reason", "state", "action"]),
-        "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")),
+        "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")), "icp_split": _records(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
+        "icp_take": ins.takeaway_icp_split(pd.read_csv(paths.marts / "experiment_a_icp_split.csv")),
         "takeaways": {"funnel": ins.takeaway_funnel(f), "north_star": ins.takeaway_north_star(wk), "sources": ins.takeaway_sources(sq), "ttq": ins.takeaway_ttq(ttq),
                       "activation": ins.takeaway_activation(act, coh), "dormant": ins.takeaway_dormant(dor), "pipeline": ins.takeaway_pipeline(pp), "ranked": ins.takeaway_ranked(ranked)},
     }

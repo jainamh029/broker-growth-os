@@ -320,9 +320,19 @@ def view_experiments():
         with tab:
             c = st.columns(4)
             c[0].metric("Decision", r.decision)
-            c[1].metric("Relative lift", f"{r.rel_lift:+.1%}")
+            if r.experiment_id == "C":
+                st.info("Experiment C cannot be powered at this size; INCONCLUSIVE is expected. Absolute lift is the headline; relative lift on a small base is shown only as a secondary figure.")
+                c[1].metric("Absolute lift (points)", f"{r.abs_lift * 100:+.1f}")
+            else:
+                c[1].metric("Relative lift", f"{r.rel_lift:+.1%}")
             c[2].metric("p-value", "< 0.001" if r.p_value < 0.001 else f"{r.p_value:.3f}")
             c[3].metric("Confidence level", f"{(1 - r.alpha):.0%}")
+            if r.experiment_id == "C":
+                d = st.columns(3)
+                d[0].metric("95% CI (points)", f"{r.abs_ci_low * 100:+.1f} to {r.abs_ci_high * 100:+.1f}")
+                d[1].metric("Detectable lift at 80% power (points)", f"{r.mde_abs_at_n * 100:.1f}")
+                d[2].metric("Detectable lift, relative", f"{r.mde_rel_at_n:+.0%}")
+                st.caption(f"Secondary: relative lift {r.rel_lift:+.1%} (95% CI {r.rel_ci_low:+.1%} to {r.rel_ci_high:+.1%}).")
             fig = go.Figure()
             fig.add_scatter(x=[r.rel_lift * 100], y=[r["name"]], mode="markers", marker=dict(size=13, color=ACCENT),
                             error_x=dict(type="data", symmetric=False, array=[(r.rel_ci_high - r.rel_lift) * 100], arrayminus=[(r.rel_lift - r.rel_ci_low) * 100], color=ACCENT),
@@ -339,6 +349,14 @@ def view_experiments():
                        f"power at the pre-registered {r.mde_relative:.0%} lift {r.power_at_mde:.0%}; SRM p = {r.srm_p_value:.2f}.")
             if not r.ci_low_clears_ship:
                 st.caption(f"Note: the lower bound of the 95% CI ({r.rel_ci_low:+.1%}) is below the {r.mde_relative:.0%} ship threshold. The rule ships on the point estimate, so there is winner's-curse risk.")
+    split = mart("experiment_a_icp_split")
+    st.markdown("### Observational panel (not an experiment)")
+    st.caption("First-submission rate of ICP vs non-ICP agencies within Experiment A's control arm, same outcome window and mature-only rule. "
+               "The generator never lets non-ICP agencies submit, so on synthetic data this contrast holds by construction.")
+    st.dataframe(split.assign(group=split.is_icp.map({1: "ICP", 0: "non-ICP"}))[["group", "n", "x", "rate", "ci_low", "ci_high"]], hide_index=True, width="stretch",
+                 column_config={"rate": st.column_config.NumberColumn("rate", format="percent"), "ci_low": st.column_config.NumberColumn("95% Wilson low", format="percent"),
+                                "ci_high": st.column_config.NumberColumn("95% Wilson high", format="percent")})
+    takeaway(ins.takeaway_icp_split(split))
     st.markdown("### Sample-size calculator")
     st.caption("How many agencies per arm would a real test need? Uses the same two-proportion formula as the framework.")
     k = st.columns(4)

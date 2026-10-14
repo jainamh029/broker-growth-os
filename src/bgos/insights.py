@@ -84,5 +84,27 @@ def takeaway_ranked(r: pd.DataFrame) -> str:
 
 
 def takeaway_experiment(r: pd.Series) -> str:
+    have, need = min(int(r["n_control"]), int(r["n_treatment"])), int(r["n_required_per_arm"])
+    if r["experiment_id"] == "C":  # cannot be powered at this size: lead with the absolute lift and the detectable effect
+        return (f"{r['decision']}: absolute lift {r['abs_lift'] * 100:+.1f} points (95% CI {r['abs_ci_low'] * 100:+.1f} to {r['abs_ci_high'] * 100:+.1f}), p {fmt_p(r['p_value'])}. "
+                f"Experiment C cannot be powered at this size; INCONCLUSIVE is expected. ({have:,} per arm vs {need:,} required.) "
+                f"At {have:,} per arm only a lift of {r['mde_abs_at_n'] * 100:.1f} points ({r['mde_rel_at_n']:+.0%} relative) or more would be detectable at 80% power.")
     return (f"{r['decision']}: relative lift {r['rel_lift']:+.1%} (95% CI {r['rel_ci_low']:+.1%} to {r['rel_ci_high']:+.1%}), p {fmt_p(r['p_value'])}; "
-            f"{min(int(r['n_control']), int(r['n_treatment'])):,} per arm vs {int(r['n_required_per_arm']):,} required.")
+            f"{have:,} per arm vs {need:,} required.")
+
+
+def wilson_ci(x: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
+    """Wilson score interval for a binomial proportion."""
+    from scipy import stats
+    z = stats.norm.ppf(1 - alpha / 2)
+    p = x / n
+    den = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / den
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / den
+    return centre - half, centre + half
+
+
+def takeaway_icp_split(d: pd.DataFrame) -> str:
+    a = d.set_index("is_icp")
+    return (f"Observational, not an experiment: in the control arm, ICP agencies reached a first submission at {pct(a.loc[1, 'rate'])} versus {pct(a.loc[0, 'rate'])} for non-ICP agencies "
+            f"(n = {int(a.loc[1, 'n']):,} and {int(a.loc[0, 'n']):,}). Experiment A tests the v2 sequence against v1, not the ICP definition.")
