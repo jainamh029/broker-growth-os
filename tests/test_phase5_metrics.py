@@ -279,7 +279,9 @@ def test_weekly_growth_review(marts, clean_tables, nest):
     for wk, n in exp_q.items():
         assert w.loc[wk, "qualified_submissions"] == n
         assert w.loc[wk, "reactivated_submissions"] == exp_r[wk]
-    assert w.is_partial_week.iloc[-1] == 1 and w.is_partial_week.iloc[:-1].sum() == 0
+    assert w.is_partial_week.iloc[-1] == 1  # trailing partial week
+    assert w.is_partial_week.iloc[0] == 1 and w.index[0] < pd.Timestamp(config.WINDOW_START)  # leading partial week (starts before the window)
+    assert w.is_partial_week.iloc[1:-1].sum() == 0
     allsub = sb.submitted_at.dt.to_period("W-SUN").dt.start_time.value_counts()
     for wk, n in allsub.items():
         assert w.loc[wk, "all_submissions"] == n

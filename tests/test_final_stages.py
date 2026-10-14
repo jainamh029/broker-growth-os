@@ -351,3 +351,47 @@ def test_loom_tells_the_honest_story(built):
         assert needle in loom, needle
     stamps = re.findall(r"\|\s*(\d+):(\d\d)-(\d+):(\d\d)\s*\|", loom)
     assert int(stamps[-1][2]) * 60 + int(stamps[-1][3]) <= 8 * 60
+
+
+# ---- Stage 6: small items (B-27) -----------------------------------------------------------------------------------------------------
+def _empty_db():
+    from bgos import schema
+    conn = schema.connect(":memory:")
+    schema.create_schema(conn)
+    return conn
+
+
+def test_leading_partial_week_is_flagged_at_the_window_boundary():
+    from bgos import metrics
+    conn = _empty_db()
+    for name in ("weekly_growth_review", "new_icp_agencies_weekly"):
+        w = metrics.run_metric(name, conn, window_start="2025-10-01", as_of="2026-09-30")  # 2025-10-01 is a Wednesday
+        assert w.week_start.iloc[0] == "2025-09-29" and w.is_partial_week.iloc[0] == 1
+        assert w.is_partial_week.iloc[1] == 0 and w.is_partial_week.iloc[-1] == 1  # trailing week ends after the as-of date
+        assert w.is_partial_week.iloc[1:-1].sum() == 0
+        w2 = metrics.run_metric(name, conn, window_start="2025-09-29", as_of="2026-10-04")  # window starts on a Monday and ends on a Sunday
+        assert w2.week_start.iloc[0] == "2025-09-29" and w2.is_partial_week.sum() == 0
+
+
+def test_partial_weeks_are_excluded_from_the_north_star_baseline():
+    from bgos import insights
+    rows = [dict(week_start=f"2026-0{1 + i // 4}-{(i % 4) * 7 + 1:02d}", is_partial_week=0, qualified_submissions=10 + i) for i in range(12)]
+    base = pd.DataFrame(rows)
+    spiked = pd.concat([pd.DataFrame([dict(week_start="2025-09-29", is_partial_week=1, qualified_submissions=10_000)]), base], ignore_index=True)
+    assert insights.takeaway_north_star(spiked) == insights.takeaway_north_star(base)
+
+
+def test_header_strip_shows_all_seven_stages_with_mature_and_observed_bound(built):
+    m = re.search(r'<div class="kpis" aria-label="Headline funnel numbers">(.*?)</div></div>(?=\s*<div id="view">)', built["home"], re.S)
+    strip = m.group(1) if m else built["home"].split('aria-label="Headline funnel numbers">')[1].split('<div id="view">')[0]
+    labels = re.findall(r"<div class='l'>([^<]+)</div>", strip)
+    assert labels == ["Raw leads", "ICP-qualified", "Engaged", "First submissions", "Quoted", "Bound", "Repeat"]
+    f = pd.read_csv(built["root"] / "data" / "marts" / "funnel_counts.csv").set_index("stage")
+    assert f"{f.loc['bound', 'mature_cumulative_conversion'] * 100:.1f}% mature" in strip and f"{f.loc['bound', 'observed_cumulative_conversion'] * 100:.1f}% observed" in strip
+    counts = re.findall(r"<div class='v'>([\d,]+)</div>", strip)
+    assert counts == [f"{int(f.loc[s, 'agencies']):,}" for s in ("raw_lead", "icp_qualified", "engaged", "first_submission", "quoted", "bound", "repeat_submission")]
+
+
+def test_both_pages_have_an_inline_favicon(built):
+    for page in (built["home"], built["memo"], (ROOT / "docs" / "index.html").read_text(), (ROOT / "docs" / "memo.html").read_text()):
+        assert re.search(r'<link rel="icon" href="data:image/svg\+xml,', page)

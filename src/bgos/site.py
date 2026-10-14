@@ -19,6 +19,7 @@ from .rounding import round_obj
 from .funnel import STAGE_BY_KEY
 
 REPO = "https://github.com/jainamh029/broker-growth-os"
+FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1b33'/%3E%3Cpath d='M7 22l6-7 5 4 7-9' fill='none' stroke='%232dd4bf' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
 
 
 def _md(text: str) -> str:
@@ -344,7 +345,7 @@ def build_data(root: Path | str | None = None) -> dict:
 def _page(title: str, body: str, script: str = "", plotly: bool = False) -> str:
     cdn = '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>' if plotly else ""
     return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n'
-            f'<title>{title}</title><meta name="theme-color" content="{theme.BLUE_DARK}">\n<style>{CSS}</style>{cdn}</head><body>\n{body}\n{script}</body></html>\n')
+            f'<title>{title}</title><meta name="theme-color" content="{theme.BLUE_DARK}">\n<link rel="icon" href="{FAVICON}"><style>{CSS}</style>{cdn}</head><body>\n{body}\n{script}</body></html>\n')
 
 
 def build_site(root: Path | str | None = None) -> str:
@@ -353,8 +354,11 @@ def build_site(root: Path | str | None = None) -> str:
     data = round_obj(build_data(root))
     facts = docs.memo_facts(root)
     f = pd.read_csv(paths.marts / "funnel_counts.csv").set_index("stage")
-    kp = [("Raw leads", facts["raw"], ""), ("ICP-qualified", facts["icp"], ""), ("Engaged", facts["engaged"], ""), ("First submissions", facts["first_sub"], ""),
-          ("Bound", facts["bound"], f"{facts['bound_pct']} of mature leads ({facts['bound_obs_pct']} raw)")]
+    fc = f.copy()
+    cnt = lambda st_: f"{int(fc.loc[st_, 'agencies']):,}"
+    mc, oc = fc.loc["bound", "mature_cumulative_conversion"], fc.loc["bound", "observed_cumulative_conversion"]
+    kp = [("Raw leads", cnt("raw_lead"), ""), ("ICP-qualified", cnt("icp_qualified"), ""), ("Engaged", cnt("engaged"), ""), ("First submissions", cnt("first_submission"), ""),
+          ("Quoted", cnt("quoted"), ""), ("Bound", cnt("bound"), f"{mc * 100:.1f}% mature &middot; {oc * 100:.1f}% observed lead-to-bound"), ("Repeat", cnt("repeat_submission"), "")]
     kpis = "".join(f"<div class='kpi'><div class='v'>{v}</div><div class='l'>{k}</div>" + (f"<div class='d'>{d}</div>" if d else "") + "</div>" for k, v, d in kp)
     payload = json.dumps(data, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
     body = f"""<a class="skip" href="#view">Skip to dashboard</a>

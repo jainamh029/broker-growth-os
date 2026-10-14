@@ -1,4 +1,4 @@
--- Weekly growth review (Monday-start weeks).
+-- Weekly growth review (Monday-start weeks). is_partial_week = 1 for a week that begins before :window_start (leading) or ends after :as_of (trailing).
 -- NORTH STAR: qualified submissions = complete submissions from ICP agencies that are NEW (first complete submission)
 --             or ACTIVE (previous complete submission less than :dormancy_days earlier).
 -- Submissions that arrive after >= :dormancy_days of silence are counted separately as reactivated_submissions.
@@ -35,7 +35,7 @@ ev AS (
     FROM stage_events GROUP BY 1
 )
 SELECT w.week_start,
-       CASE WHEN date(w.week_start, '+6 days') > date(:as_of) THEN 1 ELSE 0 END AS is_partial_week,
+       CASE WHEN date(w.week_start) < date(:window_start) OR date(w.week_start, '+6 days') > date(:as_of) THEN 1 ELSE 0 END AS is_partial_week,
        COALESCE(cw.qualified_submissions, 0) AS qualified_submissions,
        COALESCE(ev.new_icp_agencies, 0) AS new_icp_agencies,
        COALESCE(ev.new_engaged_agencies, 0) AS new_engaged_agencies,
