@@ -395,3 +395,26 @@ def test_header_strip_shows_all_seven_stages_with_mature_and_observed_bound(buil
 def test_both_pages_have_an_inline_favicon(built):
     for page in (built["home"], built["memo"], (ROOT / "docs" / "index.html").read_text(), (ROOT / "docs" / "memo.html").read_text()):
         assert re.search(r'<link rel="icon" href="data:image/svg\+xml,', page)
+
+
+# ---- Stage 7 additions (a mutant survived: analyze_experiment could pass the wrong power to the MDE) ------------------------------
+def test_reported_mde_matches_an_independent_bisection(built):
+    import math
+
+    from scipy import stats
+    e = pd.read_csv(built["root"] / "data" / "marts" / "experiment_results.csv").set_index("experiment_id")
+
+    def power(p1, p2, n, a=0.05):
+        za = stats.norm.ppf(1 - a / 2)
+        pb = (p1 + p2) / 2
+        se0, se1 = math.sqrt(2 * pb * (1 - pb) / n), math.sqrt((p1 * (1 - p1) + p2 * (1 - p2)) / n)
+        d = abs(p2 - p1)
+        return stats.norm.sf((za * se0 - d) / se1) + stats.norm.cdf((-za * se0 - d) / se1)
+    for k in "ABC":
+        p1, n = e.loc[k, "rate_control"], int(min(e.loc[k, "n_control"], e.loc[k, "n_treatment"]))
+        lo, hi = p1 + 1e-9, 0.999
+        for _ in range(80):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if power(p1, mid, n) < 0.80 else (lo, mid)
+        assert e.loc[k, "mde_abs_at_n"] == pytest.approx(lo - p1, abs=1e-6), k
+        assert e.loc[k, "mde_rel_at_n"] == pytest.approx(lo / p1 - 1, abs=1e-6), k
