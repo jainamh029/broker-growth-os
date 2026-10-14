@@ -47,7 +47,7 @@ def test_weights_sum_to_one_and_names():
     assert sum(config.SCORING_WEIGHTS.values()) == pytest.approx(1.0)
     assert config.SCORING_WEIGHTS == {"specialty_fit": 0.30, "commercial_volume": 0.25, "es_activity": 0.20,
                                       "engagement": 0.15, "geographic_priority": 0.10}
-    assert set(config.ENGAGEMENT_TOUCH_POINTS) == set(funnel.ENGAGEMENT_TOUCH_TYPES) | {"submission"}
+    assert set(config.ENGAGEMENT_TOUCH_POINTS) == set(funnel.ENGAGEMENT_TOUCH_TYPES)  # audit B-17: submissions are NOT engagement
 
 
 def test_component_formulas_hand_computed():
@@ -110,7 +110,10 @@ def test_actions_follow_tier_and_stage():
     assert scoring.recommend_action("Tier 1", "icp_qualified") == "outbound"
     assert scoring.recommend_action("Tier 1", "engaged") == "onboarding"
     assert scoring.recommend_action("Tier 2", "quoted") == "expansion"
-    assert scoring.recommend_action("Tier 2", "raw_lead") == "outbound"
+    assert scoring.recommend_action("Tier 2", "raw_lead") == "nurture"  # Tier 2 = nurture (audit B-20)
+    assert scoring.recommend_action("Tier 2", "icp_qualified") == "nurture"
+    assert scoring.recommend_action("Active", "repeat_submission") == "expansion"
+    assert scoring.recommend_action("Active", "first_submission") == "expansion"
 
 
 # ---- pipeline-level checks on generated data -----------------------------------------------------
@@ -145,9 +148,56 @@ def test_reason_references_real_component_values(ranked):
         assert f"score {r['score']:.2f}" in r["reason"]
 
 
-def test_tier_first_submission_rate_ordering(ranked, clean_result):
-    rates = scoring.tier_first_submission_rates(ranked, clean_result.stage_events)
-    assert rates["Tier 1"] > rates["Tier 2"] > rates["Tier 3"], rates.to_dict()
+def test_tiers_1_to_3_are_prospects_only(ranked, clean_result):
+    """Audit B-17: the top of the ranking used to be existing customers. Customers are Active or Reactivation."""
+    sb = clean_result.submissions
+    customers = set(sb[sb.is_complete == 1].agency_id)
+    prospect = ranked[ranked.tier.isin(["Tier 1", "Tier 2", "Tier 3"])]
+    assert not set(prospect.agency_id) & customers
+    assert set(ranked[ranked.tier.isin(["Active", "Reactivation"])].agency_id) == customers
+    assert ranked[ranked.tier == "Tier 1"].stage.isin(["raw_lead", "icp_qualified", "engaged"]).all()
+
+
+def test_engagement_never_uses_submissions():
+    base = mk_agency()
+    hot = touches("A1", [(3, "reply")])
+    without = score_one(base, hot, EMPTY_S)
+    with_sub = score_one(base, hot, subs("A1", [5, 10, 20]))
+    assert with_sub.engagement == without.engagement
+    # submissions alone give an agency zero engagement
+    assert score_one(base, EMPTY_T, subs("A1", [5, 10, 20])).engagement == 0.0
+
+
+def test_scores_are_point_in_time():
+    """Nothing dated after the as-of date may influence a score (needed for the out-of-sample check)."""
+    cutoff = AS_OF - pd.Timedelta(days=90)
+    base = mk_agency()
+    early = touches("A1", [(100, "reply")])
+    future = touches("A1", [(100, "reply"), (10, "meeting_held"), (5, "email_click")])
+    a = scoring.score_agencies(pd.DataFrame([base]), early, EMPTY_S, cutoff).iloc[0]
+    b = scoring.score_agencies(pd.DataFrame([base]), future, subs("A1", [20]), cutoff).iloc[0]
+    assert a.engagement == b.engagement and a.score == b.score and a.tier == b.tier and b.n_complete_subs == 0
+
+
+def test_out_of_sample_tier_check_orders_tiers(clean_result):
+    h = scoring.holdout_conversion_by_tier(clean_result.agencies, clean_result.touches, clean_result.submissions)
+    assert list(h.tier) == ["Tier 1", "Tier 2", "Tier 3"] and (h.prospects > 0).all()
+    assert h.scored_as_of.iloc[0] == (AS_OF - pd.Timedelta(days=config.HOLDOUT_DAYS)).date().isoformat()
+    rate = (h.converted / h.prospects)
+    assert rate.iloc[0] > rate.iloc[1] > rate.iloc[2], h.to_dict("records")
+    assert h.loc[h.prospects < config.MIN_N, "rate"].isna().all() and h.loc[h.prospects >= config.MIN_N, "rate"].notna().all()
+
+
+def test_out_of_sample_check_is_independent_of_the_outcome_window(clean_result):
+    """Deleting every touch and submission after the cutoff must not change who is in which tier."""
+    cutoff = AS_OF - pd.Timedelta(days=config.HOLDOUT_DAYS)
+    ag, tc, sb = clean_result.agencies, clean_result.touches, clean_result.submissions
+    full = scoring.score_agencies(ag, tc, sb, cutoff).set_index("agency_id")
+    tc2 = tc[pd.to_datetime(tc.touched_at) <= cutoff + pd.Timedelta(days=1)]
+    sb2 = sb[pd.to_datetime(sb.submitted_at) <= cutoff + pd.Timedelta(days=1)]
+    cut = scoring.score_agencies(ag, tc2, sb2, cutoff).set_index("agency_id")
+    pd.testing.assert_series_equal(full.tier, cut.tier)
+    pd.testing.assert_series_equal(full.score, cut.score)
 
 
 def test_written_outputs(gen_result, ranked):

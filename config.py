@@ -22,7 +22,7 @@ WINDOW_START = date(2025, 10, 1)
 WINDOW_END = date(2026, 9, 30)
 
 # --- generator volumes -----------------------------------------------------
-N_TRUE_AGENCIES = 1500
+N_TRUE_AGENCIES = 3000
 DUPLICATE_RATE = 0.05
 MISSING_STATE_RATE = 0.04
 MISSING_SIZE_RATE = 0.06
@@ -63,12 +63,12 @@ SCORING_WEIGHTS = {
 TIER_THRESHOLDS = {
     "tier1_specialty_fit": 0.70,
     "tier1_es_activity": 0.50,
-    "tier1_engagement": 0.40,
+    "tier1_engagement": 0.20,
     "tier2_score": 0.45,
 }
 ENGAGEMENT_TOUCH_POINTS = {  # points per engagement event (before recency decay)
     "email_open": 0.25, "email_click": 0.5, "reply": 1.0, "linkedin_reply": 1.0,
-    "meeting_booked": 1.5, "meeting_held": 2.0, "submission": 3.0,
+    "meeting_booked": 1.5, "meeting_held": 2.0,  # submissions are deliberately NOT here (outcome leakage)
 }
 ENGAGEMENT_HALF_LIFE_DAYS = 45.0
 ENGAGEMENT_SATURATION_POINTS = 3.0  # engagement = 1 - exp(-points / this)
@@ -138,3 +138,12 @@ A_OUTCOME_DAYS = 60   # A: first complete submission within 60d of first touch
 B_OUTCOME_DAYS = 14   # B: complete submission within 14d of engagement
 C_OUTCOME_DAYS = 45   # C: complete submission within 45d after reactivation date
 MIN_N_WEEKLY = 10     # min denominator for weekly diagnostic rates
+
+# --- out-of-sample tier check ----------------------------------------------
+HOLDOUT_DAYS = 90  # score prospects at (as-of minus this), then measure first submissions in the following window
+
+# --- cohort maturity (audit B-18) -------------------------------------------
+# A conversion step is measured only on agencies that reached the PREVIOUS stage at least this many days before the
+# as-of date, so recent leads that simply have not had time to convert do not drag rates down. Windows are set from the
+# observed lag distribution (about the 95th percentile or more); tests verify they cover it.
+STAGE_MATURITY_DAYS = {"engaged": 14, "first_submission": 60, "quoted": 60, "bound": 180, "repeat_submission": 90}

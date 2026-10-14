@@ -18,10 +18,10 @@ def _sha(path):
 def test_row_counts_in_range(gen_result):
     raw, m = gen_result["raw"], gen_result["manifest"]
     assert len(raw["agencies"]) == config.N_TRUE_AGENCIES + m["counts"]["duplicate_agencies"]
-    assert 1450 <= config.N_TRUE_AGENCIES <= 1550
-    assert 60 <= m["counts"]["duplicate_agencies"] <= 90  # ~5%
-    assert 5_000 <= len(raw["touches"]) <= 25_000
-    assert 1_500 <= len(raw["submissions"]) <= 8_000
+    assert config.N_TRUE_AGENCIES == 3000  # sized by power analysis for Experiment A at the 20% ship threshold (D39)
+    assert 130 <= m["counts"]["duplicate_agencies"] <= 170  # ~5%
+    assert 10_000 <= len(raw["touches"]) <= 50_000
+    assert 3_000 <= len(raw["submissions"]) <= 16_000
     assert set(raw["experiment_assignments"].experiment_id) == {"A", "B", "C"}
 
 

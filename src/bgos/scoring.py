@@ -22,7 +22,7 @@ COMPONENT_LABEL = {"specialty_fit": "specialty fit", "commercial_volume": "comme
                    "es_activity": "E&S activity", "engagement": "engagement",
                    "geographic_priority": "geographic priority"}
 
-TIERS = ("Reactivation", "Tier 1", "Tier 2", "Tier 3")
+TIERS = ("Reactivation", "Active", "Tier 1", "Tier 2", "Tier 3")
 
 #: Single rule table: (tier, stage) -> action category. Shared with ai/next_best_action.py.
 ACTION_TEXT = {
@@ -31,19 +31,26 @@ ACTION_TEXT = {
     "reactivation": "Reactivation: win-back note with a market update and new appetite",
     "expansion": "Expansion: ask for the next submission in an adjacent line of business",
     "monitor": "Monitor: no outreach now; re-score in 30 days",
+    "nurture": "Nurture: add to the low-touch nurture sequence (monthly market note); re-score when they engage",
 }
 _PRE_ENGAGED = {"raw_lead", "icp_qualified"}
 _POST_SUBMISSION = {"first_submission", "quoted", "bound", "repeat_submission"}
 
 
 def recommend_action(tier: str, stage: str) -> str:
-    """Action category from tier and highest funnel stage reached (see DECISIONS.md D8/D18)."""
+    """Action category from tier and highest funnel stage reached (see DECISIONS.md D8/D18/D38).
+
+    Reactivation -> reactivation; Active customer -> expansion; Tier 3 -> monitor;
+    Tier 1: not yet engaged -> outbound, engaged -> onboarding; Tier 2: not yet engaged -> nurture, engaged -> onboarding.
+    (Tier 1/2 agencies with a submission would be Active or Reactivation; the fallback is defensive.)"""
     if tier == "Reactivation":
         return "reactivation"
+    if tier == "Active":
+        return "expansion"
     if tier == "Tier 3":
         return "monitor"
     if stage in _PRE_ENGAGED:
-        return "outbound"
+        return "outbound" if tier == "Tier 1" else "nurture"
     if stage == "engaged":
         return "onboarding"
     return "expansion"
@@ -84,22 +91,21 @@ def geographic_priority(agencies: pd.DataFrame) -> pd.Series:
     return agencies["state"].map(f).astype(float)
 
 
-def engagement(agencies: pd.DataFrame, touches: pd.DataFrame, submissions: pd.DataFrame, as_of) -> pd.Series:
-    """1 - exp(-points / ENGAGEMENT_SATURATION_POINTS), points = sum over engagement events of
+def engagement(agencies: pd.DataFrame, touches: pd.DataFrame, submissions: pd.DataFrame | None, as_of) -> pd.Series:
+    """1 - exp(-points / ENGAGEMENT_SATURATION_POINTS), points = sum over engagement touches of
     config.ENGAGEMENT_TOUCH_POINTS[type] * 0.5 ** (age_days / ENGAGEMENT_HALF_LIFE_DAYS).
-    Engagement events: opens, clicks, replies, meetings, plus complete submissions. Sends are NOT engagement."""
+    Engagement events: opens, clicks, replies, meetings. Sends are NOT engagement, and neither are SUBMISSIONS:
+    counting them leaked the validation outcome into the score (audit B-17). `submissions` is accepted only so the
+    signature stays stable; it is ignored."""
     as_of = pd.Timestamp(as_of).normalize()
-    t = touches[touches["touch_type"].isin(config.ENGAGEMENT_TOUCH_POINTS)][["agency_id", "touched_at", "touch_type"]]
-    t = t.rename(columns={"touched_at": "ts", "touch_type": "kind"})
-    s = submissions[submissions["is_complete"].astype(bool)][["agency_id", "submitted_at"]].rename(columns={"submitted_at": "ts"})
-    s["kind"] = "submission"
-    ev = pd.concat([t, s], ignore_index=True)
+    ev = touches[touches["touch_type"].isin(config.ENGAGEMENT_TOUCH_POINTS)][["agency_id", "touched_at", "touch_type"]]
     out = pd.Series(0.0, index=agencies["agency_id"])
     if len(ev):
-        age = (as_of - pd.to_datetime(ev["ts"]).dt.normalize()).dt.days.clip(lower=0)
-        pts = ev["kind"].map(config.ENGAGEMENT_TOUCH_POINTS) * 0.5 ** (age / config.ENGAGEMENT_HALF_LIFE_DAYS)
+        age = (as_of - pd.to_datetime(ev["touched_at"]).dt.normalize()).dt.days.clip(lower=0)
+        pts = ev["touch_type"].map(config.ENGAGEMENT_TOUCH_POINTS) * 0.5 ** (age / config.ENGAGEMENT_HALF_LIFE_DAYS)
         tot = pts.groupby(ev["agency_id"]).sum()
-        out.loc[tot.index.intersection(out.index)] = tot.reindex(tot.index.intersection(out.index)).to_numpy()
+        idx = tot.index.intersection(out.index)
+        out.loc[idx] = tot.reindex(idx).to_numpy()
     return (1 - np.exp(-out / config.ENGAGEMENT_SATURATION_POINTS)).clip(0, 1)
 
 
@@ -107,12 +113,14 @@ def assign_tier(*, specialty: float, es: float, eng: float, score: float, is_icp
                 n_complete_subs: int, days_since_last_sub: float | None) -> str:
     """Tier precedence (first match wins):
     1. Reactivation: >= 1 complete submission AND last one >= DORMANCY_DAYS ago.
-    2. Tier 1 (immediate outbound): ICP AND specialty >= .70 AND E&S activity >= .50 AND engagement >= .40.
-    3. Tier 2 (nurture): ICP AND score >= .45.
-    4. Tier 3 (monitor): everything else."""
+    2. Active: >= 1 complete submission AND last one < DORMANCY_DAYS ago (an existing customer: expand, do not prospect).
+    3. Tier 1 (immediate outbound): ICP AND specialty >= .70 AND E&S activity >= .50 AND engagement >= .40.
+    4. Tier 2 (nurture): ICP AND score >= .45.
+    5. Tier 3 (monitor): everything else.
+    Tiers 1-3 therefore contain PROSPECTS only (no complete submission yet)."""
     th = config.TIER_THRESHOLDS
-    if n_complete_subs >= 1 and days_since_last_sub is not None and days_since_last_sub >= config.DORMANCY_DAYS:
-        return "Reactivation"
+    if n_complete_subs >= 1 and days_since_last_sub is not None:
+        return "Reactivation" if days_since_last_sub >= config.DORMANCY_DAYS else "Active"
     if is_icp and specialty >= th["tier1_specialty_fit"] and es >= th["tier1_es_activity"] and eng >= th["tier1_engagement"]:
         return "Tier 1"
     if is_icp and score >= th["tier2_score"]:
@@ -124,7 +132,10 @@ def score_agencies(agencies: pd.DataFrame, touches: pd.DataFrame, submissions: p
                    as_of=None) -> pd.DataFrame:
     """Components, score, tier and stage for every agency (one row each)."""
     as_of = pd.Timestamp(as_of or config.AS_OF).normalize()
-    df = agencies.copy().reset_index(drop=True)
+    horizon = as_of + pd.Timedelta(days=1)  # point-in-time: nothing after the as-of date may influence the score
+    touches = touches[pd.to_datetime(touches["touched_at"]) < horizon]
+    submissions = submissions[pd.to_datetime(submissions["submitted_at"]) < horizon]
+    df = agencies[pd.to_datetime(agencies["first_touch_date"]) < horizon].copy().reset_index(drop=True)
     df["specialty_fit"] = specialty_fit(df).to_numpy()
     df["commercial_volume"] = commercial_volume(df).to_numpy()
     df["es_activity"] = es_activity(df).to_numpy()
@@ -152,7 +163,7 @@ def reason_text(row) -> str:
     contrib = sorted(((config.SCORING_WEIGHTS[c] * row[c], c) for c in COMPONENTS), reverse=True)[:2]
     parts = ", ".join(f"{COMPONENT_LABEL[c]} {row[c]:.2f}" for _, c in contrib)
     extra = ""
-    if row["tier"] == "Reactivation":
+    if row["tier"] in ("Reactivation", "Active"):
         extra = f"; last complete submission {int(row['days_since_last_sub'])} days ago"
     return f"{row['tier']} (score {row['score']:.2f}): top drivers {parts}{extra}"
 
@@ -160,7 +171,7 @@ def reason_text(row) -> str:
 def channel_for(action: str, source: str) -> str:
     if action == "outbound":
         return "linkedin" if source == "linkedin" else "email"
-    return {"onboarding": "call", "reactivation": "email", "expansion": "call", "monitor": "email-nurture"}[action]
+    return {"onboarding": "call", "reactivation": "email", "expansion": "call", "monitor": "email-nurture", "nurture": "email-nurture"}[action]
 
 
 def rank_accounts(scored: pd.DataFrame) -> pd.DataFrame:
@@ -177,11 +188,28 @@ def rank_accounts(scored: pd.DataFrame) -> pd.DataFrame:
     return df[cols].sort_values(["score", "agency_id"], ascending=[False, True]).reset_index(drop=True)
 
 
-def tier_first_submission_rates(ranked: pd.DataFrame, stage_events: pd.DataFrame) -> pd.Series:
-    """First-submission rate by tier, excluding Reactivation (those agencies have all submitted by definition)."""
-    fs = set(stage_events.loc[stage_events["stage"] == "first_submission", "agency_id"])
-    r = ranked[ranked["tier"] != "Reactivation"]
-    return r.assign(fs=r["agency_id"].isin(fs)).groupby("tier")["fs"].mean()
+def holdout_conversion_by_tier(agencies: pd.DataFrame, touches: pd.DataFrame, submissions: pd.DataFrame,
+                               as_of=None, horizon_days: int | None = None) -> pd.DataFrame:
+    """Out-of-sample tier check. Score PROSPECTS (in the funnel, no complete submission yet) as of
+    (as_of - horizon) using only data available then, then count first complete submissions in the following horizon.
+    The score never sees the outcome window. On synthetic data this still validates plumbing, not real predictive power,
+    because the generator makes conversion depend on fit and engagement."""
+    as_of = pd.Timestamp(as_of or config.AS_OF).normalize()
+    horizon_days = horizon_days or config.HOLDOUT_DAYS
+    cutoff = as_of - pd.Timedelta(days=horizon_days)
+    comp = submissions[submissions["is_complete"].astype(bool)].copy()
+    comp["d"] = pd.to_datetime(comp["submitted_at"]).dt.normalize()
+    already = set(comp.loc[comp["d"] <= cutoff, "agency_id"])
+    pool = agencies[(pd.to_datetime(agencies["first_touch_date"]) <= cutoff) & ~agencies["agency_id"].isin(already)]
+    scored = score_agencies(pool, touches, submissions, cutoff)
+    won = set(comp.loc[(comp["d"] > cutoff) & (comp["d"] <= as_of), "agency_id"])
+    scored["converted"] = scored["agency_id"].isin(won)
+    g = scored.groupby("tier")["converted"].agg(["sum", "count"]).reindex(["Tier 1", "Tier 2", "Tier 3"]).fillna(0)
+    out = pd.DataFrame({"tier": g.index, "prospects": g["count"].astype(int).to_numpy(), "converted": g["sum"].astype(int).to_numpy()})
+    out["rate"] = (out["converted"] / out["prospects"].replace(0, np.nan)).where(out["prospects"] >= config.MIN_N)
+    out["scored_as_of"] = cutoff.date().isoformat()
+    out["window_days"] = horizon_days
+    return out
 
 
 def run_score(root: Path | str | None = None) -> pd.DataFrame:
@@ -191,6 +219,7 @@ def run_score(root: Path | str | None = None) -> pd.DataFrame:
     tc = pd.read_csv(paths.clean / "touches.csv")
     sb = pd.read_csv(paths.clean / "submissions.csv")
     ranked = rank_accounts(score_agencies(ag, tc, sb, config.AS_OF))
+    holdout_conversion_by_tier(ag, tc, sb, config.AS_OF).to_csv(paths.marts / "tier_holdout.csv", index=False)
     ranked.to_csv(paths.outputs / "ranked_accounts.csv", index=False)
     ranked.to_csv(paths.marts / "ranked_accounts.csv", index=False)
     conn = sqlite3.connect(paths.db)

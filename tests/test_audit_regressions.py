@@ -102,7 +102,7 @@ def test_spec_constants_pinned():
     assert (config.ACTIVATION_DAYS, config.B_OUTCOME_DAYS) == (14, 14)
     assert (config.DORMANCY_DAYS, config.REPEAT_WINDOW_DAYS, config.COHORT_WINDOWS) == (60, 90, (30, 60, 90))
     assert ex.EXPERIMENTS["A"].ship_min_relative_lift == 0.20 and ex.EXPERIMENTS["A"].alpha == 0.05
-    assert config.TIER_THRESHOLDS == {"tier1_specialty_fit": 0.70, "tier1_es_activity": 0.50, "tier1_engagement": 0.40, "tier2_score": 0.45}
+    assert config.TIER_THRESHOLDS == {"tier1_specialty_fit": 0.70, "tier1_es_activity": 0.50, "tier1_engagement": 0.20, "tier2_score": 0.45}
 
 
 # ---- weak tests strengthened --------------------------------------------------------------------------------
@@ -117,9 +117,9 @@ def test_relative_ci_matches_statsmodels_log_method(x1, n1, x2, n2):
 
 def test_tier_thresholds_are_inclusive_at_the_boundary():
     kw = dict(is_icp=True, n_complete_subs=0, days_since_last_sub=None)
-    base = dict(specialty=0.70, es=0.50, eng=0.40, score=0.50)
+    base = dict(specialty=0.70, es=0.50, eng=0.20, score=0.50)
     assert scoring.assign_tier(**base, **kw) == "Tier 1"
-    for field, below in (("specialty", 0.699), ("es", 0.499), ("eng", 0.399)):
+    for field, below in (("specialty", 0.699), ("es", 0.499), ("eng", 0.199)):
         assert scoring.assign_tier(**{**base, field: below}, **kw) == "Tier 2"
     assert scoring.assign_tier(**{**base, "eng": 0.0, "score": 0.45}, **kw) == "Tier 2"
     assert scoring.assign_tier(**{**base, "eng": 0.0, "score": 0.449}, **kw) == "Tier 3"
@@ -226,8 +226,8 @@ def test_final_report_headline_numbers_match_outputs(gen_result, marts):
     m = lambda n: pd.read_csv(gen_result["root"] / "data" / "marts" / f"{n}.csv")
     txt = (ROOT / "FINAL_REPORT.md").read_text()
     f = m("funnel_counts").set_index("stage")
-    want = [f"{int(f.loc[s, 'agencies']):,}" for s in ("raw_lead", "icp_qualified", "engaged", "first_submission", "quoted", "bound", "repeat_submission")]
-    want.append(f"{f.loc['bound', 'cumulative_conversion'] * 100:.1f}%")
+    want = [f"{int(f.loc[s_, 'agencies']):,}" for s_ in ("raw_lead", "icp_qualified", "engaged", "first_submission", "quoted", "bound", "repeat_submission")]
+    want += [f"{f.loc['bound', 'mature_cumulative_conversion'] * 100:.1f}%", f"{f.loc['bound', 'observed_cumulative_conversion'] * 100:.1f}%"]
     sq = m("source_quality").set_index("lead_source")
     ok = sq[sq.suppressed == 0]
     want += [f"{sq.loc['referral', 'bind_rate_per_lead'] * 100:.1f}%", f"{sq.loc['linkedin', 'bind_rate_per_lead'] * 100:.1f}%",
@@ -236,12 +236,17 @@ def test_final_report_headline_numbers_match_outputs(gen_result, marts):
     e = m("experiment_results").set_index("experiment_id")
     for k in "ABC":
         want += [f"{e.loc[k, 'rel_lift'] * 100:+.1f}%", f"{e.loc[k, 'rel_ci_low'] * 100:+.1f}%", f"{e.loc[k, 'rel_ci_high'] * 100:+.1f}%",
-                 e.loc[k, "decision"], f"{int(e.loc[k, 'n_required_per_arm']):,}"]
+                 e.loc[k, "decision"], f"{int(e.loc[k, 'n_required_per_arm']):,}", f"{int(min(e.loc[k, 'n_control'], e.loc[k, 'n_treatment'])):,}"]
+    want += [f"power at that effect {e.loc['A', 'power_at_mde'] * 100:.0f}%", f"only {e.loc['B', 'power_at_mde'] * 100:.0f}%"]
     t = m("time_to_quote")
     med = t[(t.scope == "all_submissions") & (t.dimension == "overall")].iloc[0].median_hours
     want.append(f"{med:.0f} hours")
     ranked = pd.read_csv(gen_result["root"] / "outputs" / "ranked_accounts.csv").tier.value_counts()
-    want += [f"{ranked[t_]} {t_}" for t_ in ("Tier 1", "Tier 2", "Tier 3", "Reactivation")]
+    want += [f"{ranked[t_]:,} {t_}" for t_ in ("Tier 1", "Tier 2", "Tier 3", "Active", "Reactivation")]
+    h = m("tier_holdout").set_index("tier")
+    want += [f"{t_} {h.loc[t_, 'converted'] / h.loc[t_, 'prospects'] * 100:.1f}%" for t_ in ("Tier 1", "Tier 2", "Tier 3")]
+    act = m("activation_rate").query("cohort == 'ALL'").iloc[0].activation_rate
+    want.append(f"{act * 100:.0f}% of engaged agencies")
     missing = [w for w in want if w not in txt]
     assert not missing, f"FINAL_REPORT.md numbers drifted from outputs: {missing}"
 
@@ -327,7 +332,8 @@ def _pages(gen_result, marts):
 def test_committed_pages_match_regenerated_and_are_labelled(gen_result, marts):
     from bgos import docs
     home, memo = _pages(gen_result, marts)
-    assert (ROOT / "docs" / "index.html").read_text() == home and (ROOT / "docs" / "memo.html").read_text() == memo
+    same = (ROOT / "docs" / "index.html").read_text() == home and (ROOT / "docs" / "memo.html").read_text() == memo
+    assert same, "committed docs/index.html or memo.html is stale: run `make docs` (diff suppressed: the pages are large)"
     for page in (home, memo):
         assert docs.DISCLAIMER in page
     assert "simulated" in home.lower() and "multiple comparisons" in home
@@ -374,3 +380,67 @@ def test_dashboard_javascript_parses(gen_result, marts, tmp_path):
     f.write_text(js)
     r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+# ---- B-18: cohort maturity ------------------------------------------------------------------------------------------
+def test_mature_step_window_boundary_is_inclusive_and_excludes_recent_leads():
+    conn = schema.connect(":memory:")
+    schema.create_schema(conn)
+    rows = [("AG-1", "2026-09-16 10:00:00"), ("AG-2", "2026-09-16 23:59:59"), ("AG-3", "2026-09-17 00:00:01")]  # cut = as-of minus 14 days
+    for aid, t in rows:
+        conn.execute("insert into agencies(agency_id,name,first_touch_date,is_icp) values(?,?,?,1)", (aid, aid, "2026-01-01"))
+        conn.execute("insert into stage_events values(?,?,?,?)", (aid, "raw_lead", 1, "2026-01-01 00:00:00"))
+        conn.execute("insert into stage_events values(?,?,?,?)", (aid, "icp_qualified", 2, t))
+    conn.execute("insert into stage_events values('AG-1','engaged',3,'2026-09-20 00:00:00')")  # converted after the window
+    f = metrics.run_metric("funnel_counts", conn, min_n=1).set_index("stage")
+    assert f.loc["engaged", "mature_base"] == 2 and f.loc["engaged", "mature_converted"] == 1  # AG-3 is too recent to count
+    assert f.loc["engaged", "mature_step_conversion"] == pytest.approx(0.5)
+    assert f.loc["engaged", "observed_step_conversion"] == pytest.approx(1 / 3, abs=1e-4)
+
+
+def test_mature_rates_are_suppressed_below_min_n():
+    conn = schema.connect(":memory:")
+    schema.create_schema(conn)
+    conn.execute("insert into agencies(agency_id,name,first_touch_date,is_icp) values('AG-1','A','2025-10-01',1)")
+    conn.execute("insert into stage_events values('AG-1','raw_lead',1,'2025-10-01 00:00:00')")
+    conn.execute("insert into stage_events values('AG-1','icp_qualified',2,'2025-10-01 00:00:00')")
+    f = metrics.run_metric("funnel_counts", conn, min_n=20).set_index("stage")
+    assert pd.isna(f.loc["icp_qualified", "mature_step_conversion"]) and pd.isna(f.loc["icp_qualified", "mature_cumulative_conversion"])
+
+
+# ---- B-19: experiment sizing matches the ship threshold -------------------------------------------------------------
+def test_every_experiment_is_sized_for_its_ship_threshold():
+    for cfg in ex.EXPERIMENTS.values():
+        assert cfg.mde_relative == cfg.ship_min_relative_lift, cfg.experiment_id
+    import dataclasses
+    with pytest.raises(ValueError, match="mde_relative"):
+        dataclasses.replace(ex.EXPERIMENTS["A"], mde_relative=0.30)
+
+
+def _two_arm(n, p_c, p_t):
+    xc, xt = round(n * p_c), round(n * p_t)
+    return pd.DataFrame({"arm": ["control"] * n + ["treatment"] * n, "mature": 1,
+                         "outcome": [1] * xc + [0] * (n - xc) + [1] * xt + [0] * (n - xt)})
+
+
+def test_required_n_uses_the_ship_threshold_not_the_planted_effect():
+    r = ex.analyze_experiment(_two_arm(1000, 0.30, 0.36), ex.EXPERIMENTS["A"])
+    assert r.n_required_per_arm == ex.sample_size_two_proportions(0.30, 0.36)  # +20%, not +30%
+    assert r.n_required_per_arm > ex.sample_size_two_proportions(0.30, 0.39) * 1.5
+
+
+def test_power_is_at_the_preregistered_effect_not_post_hoc():
+    n_req = ex.sample_size_two_proportions(0.30, 0.36)
+    a = ex.analyze_experiment(_two_arm(n_req, 0.30, 0.36), ex.EXPERIMENTS["A"])
+    b = ex.analyze_experiment(_two_arm(n_req, 0.30, 0.55), ex.EXPERIMENTS["A"])  # a much bigger observed effect
+    assert a.power_at_mde == pytest.approx(0.80, abs=0.03)
+    assert a.power_at_mde == pytest.approx(b.power_at_mde, abs=1e-9)  # does not move with the observed effect
+    assert a.sample_size_reached
+
+
+def test_ci_lower_bound_flag_and_p_value_formatting():
+    r = ex.analyze_experiment(_two_arm(2000, 0.30, 0.45), ex.EXPERIMENTS["A"])
+    assert r.ci_low_clears_ship == (r.rel_ci_low >= 0.20)
+    weak = ex.analyze_experiment(_two_arm(1500, 0.30, 0.375), ex.EXPERIMENTS["A"])
+    assert weak.decision == ex.SHIP and not weak.ci_low_clears_ship and "winner's-curse" in weak.rationale
+    assert ex.fmt_p(0.00002) == "< 0.001" and ex.fmt_p(0.0213) == "= 0.021" and "0.000" not in ex.fmt_p(0.0004)

@@ -89,8 +89,13 @@ def view_monday():
     c[1].metric("Commission, last 90d", ins.money(t.commission_last_90d))
     c[2].metric("Bound premium, last 90d", ins.money(t.bound_premium_last_90d))
     ff = f.sort_values("stage_order")
-    mode = st.toggle("Show share of raw leads instead of share of previous stage", value=False, key="funnel_mode")
-    share = ff.cumulative_conversion if mode else ff.step_conversion
+    c1, c2 = st.columns(2)
+    mode = c1.toggle("Show share of raw leads instead of share of previous stage", value=False, key="funnel_mode")
+    observed = c2.toggle("Include leads too recent to have converted (observed, understates)", value=False, key="funnel_observed")
+    if observed:
+        share = ff.observed_cumulative_conversion if mode else ff.observed_step_conversion
+    else:
+        share = ff.mature_cumulative_conversion if mode else ff.mature_step_conversion
     fig = go.Figure(go.Bar(y=[stage_name(s) for s in ff.stage], x=ff.agencies, orientation="h",
                            marker=dict(color=list(range(len(ff))), colorscale=[[0, ACCENT], [1, GREEN]]),
                            text=[f"{int(a):,}" + ("" if pd.isna(v) else f"  ({v:.0%})") for a, v in zip(ff.agencies, share)],
@@ -98,12 +103,13 @@ def view_monday():
     fig.update_yaxes(autorange="reversed")
     st.plotly_chart(style(fig, 360), width="stretch")
     takeaway(ins.takeaway_funnel(f))
-    st.caption("The synthetic funnel is deliberately generous so Experiment A can be statistically powered; real conversion rates will be lower.")
+    st.caption("Rates shown are cohort-mature: each step is measured only on agencies that reached the previous stage long enough ago to have converted "
+               "(windows set from the observed lags). The synthetic funnel is deliberately generous so Experiment A can be statistically powered; real conversion rates will be lower.")
     r = mart("ranked_accounts")
-    new_biz = r[r.tier.isin(["Tier 1", "Tier 2"]) & r.action.isin(["outbound", "onboarding"])]
+    new_biz = r[r.tier.isin(["Tier 1", "Tier 2"])]
     n_show = st.slider("Accounts to show", 3, 25, 8, key="monday_n")
     top = new_biz.sort_values(["tier", "score"], ascending=[True, False]).head(n_show)[["name", "score", "tier", "next_action", "owner", "channel", "reason"]]
-    st.markdown("**Work first this week: highest-fit accounts that are not yet submitting**")
+    st.markdown("**Work first this week: highest-fit prospects that are not yet submitting**")
     st.dataframe(top, hide_index=True, width="stretch",
                  column_config={"score": st.column_config.ProgressColumn("score", min_value=0.0, max_value=1.0, format="%.2f")})
 
@@ -211,7 +217,8 @@ def view_activation():
     heat.update_yaxes(autorange="reversed", title="First-submission month")
     st.plotly_chart(style(heat, 420), width="stretch")
     takeaway(ins.takeaway_activation(act, coh))
-    st.caption("Only mature agencies (a full window observed before the as-of date) are in each denominator; blank cells are suppressed or immature.")
+    st.caption("Only mature agencies (a full window observed before the as-of date) are in each denominator; blank cells are suppressed or immature. "
+               "These repeat rates are anchored on the FIRST SUBMISSION (30/60/90 days); the funnel's Repeat stage is anchored on the first BIND (90 days), so the two differ by design.")
 
 
 def view_dormant():
@@ -240,8 +247,8 @@ def view_pipeline():
     p_all = mart("pipeline_projection")
     st.subheader("Pipeline and Revenue Projection by Segment")
     with st.expander("Assumptions behind this projection"):
-        st.markdown(f"- Open pipeline = agencies whose highest stage is ICP, engaged, first submission or quoted with activity in the last {config.PIPELINE_OPEN_DAYS} days.\n"
-                    "- Each converts at its segment's observed P(bound | stage reached); the overall rate is used when a segment has fewer than %d agencies at that stage.\n"
+        st.markdown(f"- Open (pending) pipeline = agencies whose highest stage is ICP, engaged, first submission or quoted and that reached it within the maturity window of the next step; older ones are treated as lost.\n"
+                    "- Each converts at the product of its segment's remaining cohort-mature step rates; the overall rate is used when a segment has fewer than %d agencies at that stage.\n"
                     "- Revenue per bound agency = observed average first-bind commission. Repeat revenue is excluded. This is a projection from synthetic rates, not a forecast." % config.MIN_N)
     segs = st.multiselect("Segments", sorted(p_all.segment), default=sorted(p_all.segment), key="pipe_segs")
     p = p_all[p_all.segment.isin(segs)] if segs else p_all
@@ -268,7 +275,7 @@ def view_ranked():
     r = mart("ranked_accounts")
     st.subheader("Ranked Accounts")
     c = st.columns(3)
-    tiers = c[0].multiselect("Tier", ["Tier 1", "Tier 2", "Reactivation", "Tier 3"], default=["Tier 1", "Tier 2", "Reactivation"])
+    tiers = c[0].multiselect("Tier", ["Tier 1", "Tier 2", "Tier 3", "Active", "Reactivation"], default=["Tier 1", "Tier 2"])
     owners = c[1].multiselect("Owner", sorted(r.owner.unique()))
     q = c[2].text_input("Search name")
     d = st.columns([2, 1])
@@ -281,11 +288,15 @@ def view_ranked():
         f = f[f.state.isin(states)]
     if q:
         f = f[f.name.str.contains(q, case=False, regex=False)]
-    vc = r.tier.value_counts().reindex(["Tier 1", "Tier 2", "Reactivation", "Tier 3"])
-    fig = go.Figure(go.Bar(x=vc.index, y=vc.values, marker_color=[GREEN, ACCENT, TEAL, MUTED], text=vc.values, textposition="outside"))
+    vc = r.tier.value_counts().reindex(["Tier 1", "Tier 2", "Tier 3", "Active", "Reactivation"])
+    fig = go.Figure(go.Bar(x=vc.index, y=vc.values, marker_color=[GREEN, ACCENT, MUTED, TEAL, SKY], text=vc.values, textposition="outside"))
     st.plotly_chart(style(fig, 260), width="stretch")
     takeaway(ins.takeaway_ranked(r))
-    st.caption("Score = 0.30 specialty fit + 0.25 commercial volume + 0.20 E&S activity + 0.15 engagement + 0.10 geographic priority. Every reason names the top two drivers.")
+    hold = mart("tier_holdout")
+    st.markdown("**Out-of-sample check.** Prospects scored 90 days before the as-of date using only data available then; first submissions counted in the following 90 days.")
+    st.dataframe(hold[["tier", "prospects", "converted", "rate"]], hide_index=True, width="stretch",
+                 column_config={"rate": st.column_config.NumberColumn("conversion", format="percent")})
+    st.caption("Tiers 1-3 contain prospects only; customers are Active or Reactivation. Engagement counts opens, clicks, replies and meetings, never submissions. On synthetic data this checks plumbing, not real predictive power. Score = 0.30 specialty fit + 0.25 commercial volume + 0.20 E&S activity + 0.15 engagement + 0.10 geographic priority. Every reason names the top two drivers.")
     st.markdown(f"**{len(f):,} accounts match** (showing the first 500)")
     cols = ["name", "score", "tier", "next_action", "owner", "channel", "reason"]
     st.dataframe(f[cols].head(500), hide_index=True, width="stretch",
@@ -310,7 +321,7 @@ def view_experiments():
             c = st.columns(4)
             c[0].metric("Decision", r.decision)
             c[1].metric("Relative lift", f"{r.rel_lift:+.1%}")
-            c[2].metric("p-value", f"{r.p_value:.3f}")
+            c[2].metric("p-value", "< 0.001" if r.p_value < 0.001 else f"{r.p_value:.3f}")
             c[3].metric("Confidence level", f"{(1 - r.alpha):.0%}")
             fig = go.Figure()
             fig.add_scatter(x=[r.rel_lift * 100], y=[r["name"]], mode="markers", marker=dict(size=13, color=ACCENT),
@@ -325,7 +336,9 @@ def view_experiments():
             have, need = min(int(r.n_control), int(r.n_treatment)), int(r.n_required_per_arm)
             st.progress(min(1.0, have / need), text=f"Sample reached: {have:,} of {need:,} required per arm")
             st.caption(f"Control {int(r.x_control)}/{int(r.n_control)} = {r.rate_control:.1%}; treatment {int(r.x_treatment)}/{int(r.n_treatment)} = {r.rate_treatment:.1%}; "
-                       f"achieved power {r.achieved_power:.0%}; SRM p = {r.srm_p_value:.2f}.")
+                       f"power at the pre-registered {r.mde_relative:.0%} lift {r.power_at_mde:.0%}; SRM p = {r.srm_p_value:.2f}.")
+            if not r.ci_low_clears_ship:
+                st.caption(f"Note: the lower bound of the 95% CI ({r.rel_ci_low:+.1%}) is below the {r.mde_relative:.0%} ship threshold. The rule ships on the point estimate, so there is winner's-curse risk.")
     st.markdown("### Sample-size calculator")
     st.caption("How many agencies per arm would a real test need? Uses the same two-proportion formula as the framework.")
     k = st.columns(4)

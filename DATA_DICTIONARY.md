@@ -122,7 +122,7 @@ Derived: Broker Fit Score, tier and next action per agency (see scoring.py).
 | `es_activity` | REAL | Component in [0,1]: E&S appetite and prior-year E&S submissions. |  |
 | `engagement` | REAL | Component in [0,1]: recency-decayed engagement events. |  |
 | `geographic_priority` | REAL | Component in [0,1]: priority-state score. |  |
-| `tier` | TEXT | Reactivation, Tier 1, Tier 2, or Tier 3 (precedence in DECISIONS.md D8). |  |
+| `tier` | TEXT | Reactivation, Active (existing customer), Tier 1, Tier 2 or Tier 3 (prospect tiers); precedence in DECISIONS.md D18/D38. |  |
 | `next_action` | TEXT | Recommended next step. |  |
 | `owner` | TEXT | Account owner. |  |
 | `channel` | TEXT | Recommended outreach channel. |  |
@@ -133,7 +133,7 @@ Derived: Broker Fit Score, tier and next action per agency (see scoring.py).
 | Mart | SQL file | Description |
 |---|---|---|
 | `new_icp_agencies_weekly` | `sql/new_icp_agencies_weekly.sql` | New ICP-qualified agencies entering per week |
-| `funnel_counts` | `sql/funnel_counts.sql` | Nested funnel counts, step and cumulative conversion |
+| `funnel_counts` | `sql/funnel_counts.sql` | Nested funnel counts; observed and cohort-mature step/cumulative conversion |
 | `meeting_funnel` | `sql/meeting_funnel.sql` | Meeting diagnostic: engaged -> meeting -> submission |
 | `source_quality` | `sql/source_quality.sql` | Source quality by downstream bind/repeat, min-n suppressed |
 | `time_to_quote` | `sql/time_to_quote.sql` | Median hours submission -> quote, overall/line/complexity |

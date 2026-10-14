@@ -38,7 +38,38 @@ def nest(clean_tables):
     rep = rep[(rep.submitted_at > rep.fb) & (rep.submitted_at <= rep.fb + pd.Timedelta(days=config.REPEAT_WINDOW_DAYS))]
     d["has_rep"] = d.index.isin(rep.agency_id)
     d["s6"] = d.s5 & d.has_rep
+    d["first_quote_at"] = comp[comp.quoted_at.notna()].groupby("agency_id").quoted_at.min()
+    d["first_rep_at"] = rep.groupby("agency_id").submitted_at.min()
+    d["t2"] = pd.to_datetime(d.first_touch_date).where(d.icp)
+    d["t3"] = d.eng_at.where(d.s2)
+    d["t4"] = d.fs_at.where(d.s3)
+    d["t5"] = d.first_quote_at.where(d.s4)
+    d["t6"] = d.first_bind.where(d.s5)
+    d["t7"] = d.first_rep_at.where(d.s6)
     return d
+
+
+WIN = {3: config.STAGE_MATURITY_DAYS["engaged"], 4: config.STAGE_MATURITY_DAYS["first_submission"], 5: config.STAGE_MATURITY_DAYS["quoted"],
+       6: config.STAGE_MATURITY_DAYS["bound"], 7: config.STAGE_MATURITY_DAYS["repeat_submission"]}
+
+
+def mature_steps(df, windows=None):
+    """Independent cohort-maturity logic: step k is measured only on agencies that reached stage k-1 >= WIN[k] days before the as-of date."""
+    windows = windows or WIN
+    out = {2: (len(df), int(df.t2.notna().sum()))}
+    for k in range(3, 8):
+        prev, cur = df[f"t{k - 1}"], df[f"t{k}"]
+        m = prev.notna() & (prev <= AS_OF_END - pd.Timedelta(days=windows[k]))
+        out[k] = (int(m.sum()), int((m & cur.notna()).sum()))
+    return out
+
+
+def cum_rate(steps, upto):
+    r = 1.0
+    for k in range(2, upto + 1):
+        b, c = steps[k]
+        r *= c / b
+    return r
 
 
 def test_registry_and_sql_files_match_both_ways():
@@ -67,8 +98,27 @@ def test_funnel_counts_match_pandas_and_reconcile(marts, nest, clean_tables):
     out_of_funnel = len(comp_agencies) - f["first_submission"]
     assert out_of_funnel == len(comp_agencies - set(nest.index[nest.s3]))
     assert out_of_funnel >= 0
-    cc = marts["funnel_counts"].set_index("stage")["cumulative_conversion"]
-    assert cc["raw_lead"] == 1.0 and cc["bound"] == pytest.approx(f["bound"] / f["raw_lead"], abs=1e-4)
+    fc = marts["funnel_counts"].set_index("stage_order")
+    assert fc.loc[1, "observed_cumulative_conversion"] == 1.0
+    assert fc.loc[6, "observed_cumulative_conversion"] == pytest.approx(f["bound"] / f["raw_lead"], abs=1e-4)
+    # cohort-mature conversion, recomputed independently
+    st = mature_steps(nest)
+    for k in range(2, 8):
+        assert (int(fc.loc[k, "mature_base"]), int(fc.loc[k, "mature_converted"])) == st[k], k
+        assert fc.loc[k, "mature_step_conversion"] == pytest.approx(st[k][1] / st[k][0], abs=1e-4)
+        assert fc.loc[k, "mature_cumulative_conversion"] == pytest.approx(cum_rate(st, k), abs=1e-4)
+    # the audit finding: observed rates understate because recent leads have not had time to convert
+    assert fc.loc[6, "mature_cumulative_conversion"] > fc.loc[6, "observed_cumulative_conversion"] + 0.02
+    assert fc.loc[7, "mature_step_conversion"] > fc.loc[7, "observed_step_conversion"]
+
+
+def test_stage_maturity_windows_cover_observed_lags(nest):
+    """The windows are set from the data: each must cover at least 90% of the lags observed among agencies old enough to show them."""
+    for k in range(3, 8):
+        lag = (nest[f"t{k}"] - nest[f"t{k - 1}"]).dt.days.dropna()
+        old = lag[nest.loc[lag.index, f"t{k - 1}"] <= AS_OF_END - pd.Timedelta(days=330)]
+        if len(old) >= 30:
+            assert (old <= WIN[k]).mean() >= 0.90, (k, WIN[k], old.quantile(0.9))
 
 
 def test_new_icp_weekly(marts, nest):
@@ -84,20 +134,22 @@ def test_new_icp_weekly(marts, nest):
 
 def test_source_quality(marts, nest):
     sq = marts["source_quality"].set_index("lead_source")
-    g = nest.groupby("lead_source")
+    tiny = ["podcast_sponsor", "state_assoc_booth", "wholesaler_alumni"]
     for src, row in sq.iterrows():
         sub = nest[nest.lead_source == src]
-        assert row.leads == len(sub)
-        assert row.bound_agencies == sub.s5.sum()
-        assert row.repeat_agencies == sub.s6.sum()
-        assert row.first_submissions == sub.s3.sum()
-        if len(sub) >= config.MIN_N:
-            assert row.bind_rate_per_lead == pytest.approx(sub.s5.sum() / len(sub), abs=1e-4)
+        assert row.leads == len(sub) and row.bound_agencies == sub.s5.sum() and row.repeat_agencies == sub.s6.sum() and row.first_submissions == sub.s3.sum()
+        st = mature_steps(sub)
+        need_bind = min(st[k][0] for k in (3, 4, 5, 6))
+        if need_bind >= config.MIN_N and len(sub) >= config.MIN_N:
+            assert row.bind_rate_per_lead == pytest.approx(cum_rate(st, 6), abs=1e-4), src
+            assert row.first_submission_rate == pytest.approx(cum_rate(st, 4), abs=1e-4), src
             assert row.suppressed == 0
+            assert row.observed_bind_rate == pytest.approx(sub.s5.sum() / len(sub), abs=1e-4)
+            assert row.bind_rate_per_lead > row.observed_bind_rate  # observed understates (immature leads)
         else:
-            assert np.isnan(row.bind_rate_per_lead) and row.suppressed == 1
-    big = sq.bind_rate_per_lead.drop(["podcast_sponsor", "state_assoc_booth", "wholesaler_alumni"])
-    assert big.idxmin() == "linkedin"  # audit B-10: referral-is-best is verified at large n (test_audit_regressions.py)
+            assert np.isnan(row.bind_rate_per_lead) and row.suppressed == 1, src
+    big = sq.bind_rate_per_lead.drop(tiny).dropna()
+    assert big.idxmin() == "linkedin"
     assert big["referral"] >= big.drop("referral").median()
 
 
@@ -139,18 +191,20 @@ def test_pipeline_projection(marts, nest):
     pp = marts["pipeline_projection"].set_index("segment")
     d = nest.copy()
     d["top"] = np.select([d.s5, d.s4, d.s3, d.s2, d.icp], [6, 5, 4, 3, 2], default=1)
-    reached = {k: d[col].groupby(d.specialty_focus).sum() for k, col in {2: "icp", 3: "s2", 4: "s3", 5: "s4", 6: "s5"}.items()}
-    overall = {k: v.sum() for k, v in reached.items()}
-    age = (AS_OF - pd.to_datetime(d.last_activity_date)).dt.days
-    open_ = d[(d.top.between(2, 5)) & (age <= config.PIPELINE_OPEN_DAYS)]
+    seg_steps = {seg: mature_steps(g) for seg, g in d.groupby("specialty_focus")}
+    overall = {k: (sum(v[k][0] for v in seg_steps.values()), sum(v[k][1] for v in seg_steps.values())) for k in range(3, 7)}
+    tt = d.t2.where(d.top == 2).fillna(d.t3.where(d.top == 3)).fillna(d.t4.where(d.top == 4)).fillna(d.t5.where(d.top == 5))
+    win = d.top.map({2: WIN[3], 3: WIN[4], 4: WIN[5], 5: WIN[6]})  # window of the NEXT step
+    pending = d.top.between(2, 5) & (tt > AS_OF_END - pd.to_timedelta(win, unit="D"))
+    open_ = d[pending]
     for seg, row in pp.iterrows():
+        r = {k: (seg_steps[seg][k][1] / seg_steps[seg][k][0] if seg_steps[seg][k][0] >= config.MIN_N else overall[k][1] / overall[k][0]) for k in range(3, 7)}
+        p_from = {2: r[3] * r[4] * r[5] * r[6], 3: r[4] * r[5] * r[6], 4: r[5] * r[6], 5: r[6]}
         exp_bound = 0.0
         for k, openk in ((2, "open_icp"), (3, "open_engaged"), (4, "open_first_submission"), (5, "open_quoted")):
             n_open = ((open_.specialty_focus == seg) & (open_.top == k)).sum()
             assert row[openk] == n_open, (seg, openk)
-            r_k = reached[k][seg] if reached[k][seg] >= config.MIN_N else overall[k]
-            r_6 = reached[6][seg] if reached[k][seg] >= config.MIN_N else overall[6]
-            exp_bound += n_open * r_6 / r_k
+            exp_bound += n_open * p_from[k]
         assert row.expected_new_bound_agencies == pytest.approx(exp_bound, abs=0.02), seg
     total = pp.expected_new_bound_agencies.sum()
     assert total > 0 and (pp.projected_commission >= 0).all()
@@ -197,7 +251,14 @@ def test_owner_performance(marts, nest):
         r = op.loc[owner]
         assert r.agencies == len(g) and r.icp_agencies == g.icp.sum() and r.engaged_agencies == g.s2.sum()
         assert r.first_submissions == g.s3.sum() and r.bound_agencies == g.s5.sum()
-        assert r.activation_rate == pytest.approx(g.s3.sum() / g.s2.sum(), abs=1e-4)
+        st = mature_steps(g)
+        assert r.engagement_rate == pytest.approx(st[3][1] / st[3][0], abs=1e-4)
+        assert r.activation_rate == pytest.approx(st[4][1] / st[4][0], abs=1e-4)
+        m = g.t4.notna() & (g.t4 <= AS_OF_END - pd.Timedelta(days=WIN[5] + WIN[6]))  # first submission -> bound window
+        if m.sum() >= config.MIN_N:
+            assert r.bind_rate_of_submitters == pytest.approx((m & g.t6.notna()).sum() / m.sum(), abs=1e-4)
+        else:
+            assert np.isnan(r.bind_rate_of_submitters)
     assert op.agencies.sum() == len(nest)
 
 

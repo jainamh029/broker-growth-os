@@ -48,7 +48,7 @@ def run_demo(root: Path | str | None = None) -> str:
         ranked = pd.read_csv(ranked_path)
         touches = pd.read_csv(touches_path) if touches_path.exists() else pd.DataFrame(columns=["agency_id", "touch_type", "touched_at"])
         L += ["## 3. Next-best-action (from the ranked synthetic accounts)", "", "| Agency | Tier | Stage | Action | Why |", "|---|---|---|---|---|"]
-        for tier in ("Tier 1", "Tier 2", "Reactivation", "Tier 3"):
+        for tier in ("Tier 1", "Tier 2", "Active", "Reactivation", "Tier 3"):
             for r in ranked[ranked.tier == tier].head(2).itertuples():
                 n = recommend(r.agency_id, r.tier, r.stage)
                 L.append(f"| {r.name} | {n.tier} | {n.stage} | {n.action} | {n.reason} |")

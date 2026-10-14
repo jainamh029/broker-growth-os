@@ -91,7 +91,7 @@ def test_scorer_is_deterministic():
 
 NBA_CASES = [
     ("Tier 1", "icp_qualified", "outbound"), ("Tier 1", "engaged", "onboarding"), ("Tier 1", "first_submission", "expansion"),
-    ("Tier 1", "bound", "expansion"), ("Tier 2", "raw_lead", "outbound"), ("Tier 2", "engaged", "onboarding"),
+    ("Tier 1", "bound", "expansion"), ("Tier 2", "raw_lead", "nurture"), ("Active", "bound", "expansion"), ("Active", "first_submission", "expansion"), ("Tier 2", "engaged", "onboarding"),
     ("Tier 2", "quoted", "expansion"), ("Reactivation", "bound", "reactivation"), ("Reactivation", "first_submission", "reactivation"),
     ("Tier 3", "raw_lead", "monitor"), ("Tier 3", "engaged", "monitor"),
 ]

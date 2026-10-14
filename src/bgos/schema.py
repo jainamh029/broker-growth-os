@@ -110,7 +110,7 @@ TABLES: dict[str, dict] = {
             ("es_activity", "REAL", "Component in [0,1]: E&S appetite and prior-year E&S submissions.", ""),
             ("engagement", "REAL", "Component in [0,1]: recency-decayed engagement events.", ""),
             ("geographic_priority", "REAL", "Component in [0,1]: priority-state score.", ""),
-            ("tier", "TEXT", "Reactivation, Tier 1, Tier 2, or Tier 3 (precedence in DECISIONS.md D8).", ""),
+            ("tier", "TEXT", "Reactivation, Active (existing customer), Tier 1, Tier 2 or Tier 3 (prospect tiers); precedence in DECISIONS.md D18/D38.", ""),
             ("next_action", "TEXT", "Recommended next step.", ""),
             ("owner", "TEXT", "Account owner.", ""),
             ("channel", "TEXT", "Recommended outreach channel.", ""),

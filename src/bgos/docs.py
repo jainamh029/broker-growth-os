@@ -64,6 +64,7 @@ def memo_facts(root: Path | str | None = None) -> dict[str, str]:
     m = lambda name: pd.read_csv(paths.marts / f"{name}.csv")
     f = m("funnel_counts").set_index("stage")
     ranked = pd.read_csv(paths.marts / "ranked_accounts.csv")
+    hold = pd.read_csv(paths.marts / "tier_holdout.csv")
     tiers = ranked.tier.value_counts()
     act = m("activation_rate").set_index("cohort").loc["ALL"]
     sq = m("source_quality")
@@ -79,11 +80,13 @@ def memo_facts(root: Path | str | None = None) -> dict[str, str]:
         "a_ship": str(sweep["A"]["decisions"].get("SHIP", 0)), "b_ship": str(sweep["B"]["decisions"].get("SHIP", 0)),
         "c_sig": str(sweep["C"]["significant_p_lt_0.05"]),
         "raw": _n(f.loc["raw_lead", "agencies"]), "icp": _n(f.loc["icp_qualified", "agencies"]),
-        "icp_pct": _p(f.loc["icp_qualified", "cumulative_conversion"]),
+        "icp_pct": _p(f.loc["icp_qualified", "mature_cumulative_conversion"]),
         "engaged": _n(f.loc["engaged", "agencies"]), "first_sub": _n(f.loc["first_submission", "agencies"]),
-        "bound": _n(f.loc["bound", "agencies"]), "bound_pct": _p(f.loc["bound", "cumulative_conversion"], 1),
+        "bound": _n(f.loc["bound", "agencies"]), "bound_pct": _p(f.loc["bound", "mature_cumulative_conversion"], 1),
+        "bound_obs_pct": _p(f.loc["bound", "observed_cumulative_conversion"], 1),
         "repeat": _n(f.loc["repeat_submission", "agencies"]),
         "tier1": _n(tiers.get("Tier 1", 0)), "tier2": _n(tiers.get("Tier 2", 0)), "react": _n(tiers.get("Reactivation", 0)),
+        "active": _n(tiers.get("Active", 0)), "hold_t1": _p(hold.set_index("tier").loc["Tier 1", "rate"]), "hold_t3": _p(hold.set_index("tier").loc["Tier 3", "rate"]),
         "act_rate": _p(act.activation_rate),
         "act_gain": _n(0.10 * f.loc["engaged", "agencies"]),
         "worst_src": str(worst.lead_source), "worst_share": _p(worst.leads / leads), "worst_rate": _p(worst.bind_rate_per_lead, 1),
@@ -110,9 +113,9 @@ def build_memo(facts: dict[str, str]) -> str:
 
 **Growth thesis.** A specialty wholesaler grows by turning more agencies into repeat submitters, not by sending more email. Our north star is weekly qualified submissions from active agencies; every lever is judged by downstream bind and repeat, never by sends or connections.
 
-**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound ({facts['bound_pct']} of leads), {facts['repeat']} repeat. The funnel is deliberately generous so Experiment A can be powered; real rates will be lower.
+**Funnel.** Raw lead, ICP-qualified, Engaged, First submission (complete, underwriting-ready), Quoted, Bound, Repeat (another complete submission within 90 days of bind). Synthetic baseline: {facts['raw']} leads, {facts['icp']} ICP-qualified ({facts['icp_pct']}), {facts['engaged']} engaged, {facts['first_sub']} first submissions, {facts['bound']} bound, {facts['repeat']} repeat. Counting only leads old enough to have converted, {facts['bound_pct']} reach a bind ({facts['bound_obs_pct']} raw, which understates it). The funnel is deliberately generous so Experiment A can be powered; real rates will be lower.
 
-**ICP.** Commercial lines with E&S or specialty exposure and at least 3 producers. A transparent fit score ranks every agency: {facts['tier1']} Tier 1 for immediate outbound, {facts['tier2']} Tier 2 to nurture, {facts['react']} dormant to reactivate. The tier ordering is a plumbing check on synthetic data, not evidence of predictive power.
+**ICP.** Commercial lines with E&S or specialty exposure and at least 3 producers. A transparent fit score ranks every agency: {facts['active']} are active customers to expand, {facts['react']} dormant to reactivate, and among prospects {facts['tier1']} are Tier 1 (immediate outbound) and {facts['tier2']} Tier 2 (nurture). Scored 90 days before the as-of date using only data available then, Tier 1 prospects converted at {facts['hold_t1']} versus {facts['hold_t3']} for Tier 3. On synthetic data this checks plumbing, not real predictive power.
 
 **Two highest-leverage gaps (synthetic baseline).**
 1. Activation: only {facts['act_rate']} of engaged agencies send a complete submission within 14 days. Each +10 points adds about {facts['act_gain']} first submissions on this book.

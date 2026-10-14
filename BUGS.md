@@ -21,6 +21,12 @@ Independent audit of Broker Growth OS. Severity: Sev-1 wrong number / crash on a
 | B-14 | 3 | fixed | A7 | Two simultaneous first visitors to a fresh deployment could both run the bootstrap pipeline and write the same files. Output is deterministic so the files converge, but it is a race. | `bootstrap_once()` lock file + concurrency test |
 | B-15 | 3 | open | A8 | Git author email is a personal address and will be public on GitHub. | Cannot be fixed without rewriting pushed history (force-push is forbidden); left, noted in AUDIT_REPORT.md |
 
+| B-17 | 1 | fixed | external review | Scoring was circular: complete submissions counted as engagement (3 points), Tier 1 required engagement >= 0.40, and the tier check validated against first submission. 77 of 83 Tier 1 accounts had already submitted; the top of Ranked Accounts was existing customers. | Submissions removed from engagement; Active tier; point-in-time scoring; out-of-sample holdout (D38) |
+| B-18 | 1 | fixed | external review | The funnel, source quality, owner performance and pipeline projection ignored cohort maturity, understating conversion by 8-11 points while the Activation view handled maturity correctly (the dashboard contradicted itself). | Cohort-mature step rates in SQL (D39) |
+| B-19 | 2 | fixed | external review | Experiment A was sized for +30% but shipped at +20%, so "sample size reached" was misleading; "achieved power" was post-hoc; SHIP on the point estimate had no winner's-curse note; "p = 0.000" displayed. | mde == ship threshold, power at the pre-registered effect, CI-bound warning, p formatting; N raised to 3,000 (D40, D41) |
+| B-20 | 3 | fixed | external review | Tier 2 "nurture" never produced a nurture action; the two "repeat" definitions were not labelled. | `nurture` action; captions on Activation and Cohorts |
+| B-21 | 3 | open | external review | Experiment A randomizes all enrolled agencies (including non-ICP) between the v2 and v1 sequences, so it tests the targeted sequence, not the ICP definition itself; Experiment C is underpowered by design. Both are documented, not changed. | Hypothesis wording corrected |
+
 ## Weak or tautological tests found
 
 - `test_zero_noncanonical_sources`: asserted mapped labels are "in CANONICAL", so a wrong mapping (`LI` to outbound) still passed. Strengthened with exact expectations (B-07).

@@ -7,13 +7,14 @@ from pydantic import BaseModel
 
 from .. import funnel, scoring
 
-Action = Literal["outbound", "onboarding", "reactivation", "expansion", "monitor"]
+Action = Literal["outbound", "onboarding", "reactivation", "expansion", "monitor", "nurture"]
 
 WHY = {
     "outbound": "No engagement yet but the account fits the ICP: start the ICP-targeted sequence.",
     "onboarding": "Engaged but has not sent a complete submission: remove friction with the submission-ready checklist.",
     "reactivation": "Previously submitted, then silent for the dormancy window: win back with a market update.",
     "expansion": "Already submitting: widen the relationship into adjacent lines of business.",
+    "nurture": "Good fit but not engaged yet: keep warm with the low-touch nurture sequence and re-score when they engage.",
     "monitor": "Low fit or low priority: no outreach now; re-score in 30 days.",
 }
 

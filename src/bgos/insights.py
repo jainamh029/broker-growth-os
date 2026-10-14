@@ -4,6 +4,7 @@ from __future__ import annotations
 import pandas as pd
 
 from . import funnel
+from .experiments import fmt_p
 
 
 def pct(x: float, d: int = 1) -> str:
@@ -15,15 +16,15 @@ def money(x: float) -> str:
 
 
 def takeaway_funnel(f: pd.DataFrame) -> str:
+    """Uses COHORT-MATURE conversion (each step measured only on agencies old enough to have converted)."""
     f = f.sort_values("stage_order")
-    raw, last = int(f.iloc[0].agencies), f.iloc[-1]
-    steps = f.iloc[1:].dropna(subset=["step_conversion"])
-    worst = steps.loc[steps.step_conversion.idxmin()]
+    raw, bound = int(f.iloc[0].agencies), f[f.stage == "bound"].iloc[0]
+    steps = f.iloc[1:].dropna(subset=["mature_step_conversion"])
+    worst = steps.loc[steps.mature_step_conversion.idxmin()]
     prev = f[f.stage_order == worst.stage_order - 1].iloc[0]
-    bound = f[f.stage == "bound"].iloc[0]
-    return (f"Of {raw:,} raw leads, {int(bound.agencies):,} ({pct(bound.cumulative_conversion)}) reach a bind. "
-            f"The biggest drop is {funnel.STAGE_BY_KEY[prev.stage].name} to {funnel.STAGE_BY_KEY[worst.stage].name}: "
-            f"only {pct(worst.step_conversion, 0)} continue.")
+    return (f"Of {raw:,} raw leads, {int(bound.agencies):,} have bound so far ({pct(bound.observed_cumulative_conversion)} observed, which understates it because recent leads have not had time to convert). "
+            f"Counting only agencies old enough to have converted, {pct(bound.mature_cumulative_conversion)} of leads reach a bind. "
+            f"The biggest drop is {funnel.STAGE_BY_KEY[prev.stage].name} to {funnel.STAGE_BY_KEY[worst.stage].name}: only {pct(worst.mature_step_conversion, 0)} continue.")
 
 
 def takeaway_north_star(w: pd.DataFrame) -> str:
@@ -78,10 +79,10 @@ def takeaway_pipeline(p: pd.DataFrame) -> str:
 
 def takeaway_ranked(r: pd.DataFrame) -> str:
     vc = r.tier.value_counts()
-    return (f"{vc.get('Tier 1', 0):,} Tier 1 accounts are ready for immediate outbound, {vc.get('Tier 2', 0):,} are nurture, "
-            f"{vc.get('Reactivation', 0):,} need win-back and {vc.get('Tier 3', 0):,} are monitor-only.")
+    return (f"Of {len(r):,} agencies, {vc.get('Active', 0):,} are active customers to expand and {vc.get('Reactivation', 0):,} need win-back. "
+            f"Among prospects, {vc.get('Tier 1', 0):,} are Tier 1 for immediate outbound, {vc.get('Tier 2', 0):,} are Tier 2 nurture and {vc.get('Tier 3', 0):,} are monitor-only.")
 
 
 def takeaway_experiment(r: pd.Series) -> str:
-    return (f"{r['decision']}: relative lift {r['rel_lift']:+.1%} (95% CI {r['rel_ci_low']:+.1%} to {r['rel_ci_high']:+.1%}), p = {r['p_value']:.3f}; "
+    return (f"{r['decision']}: relative lift {r['rel_lift']:+.1%} (95% CI {r['rel_ci_low']:+.1%} to {r['rel_ci_high']:+.1%}), p {fmt_p(r['p_value'])}; "
             f"{min(int(r['n_control']), int(r['n_treatment'])):,} per arm vs {int(r['n_required_per_arm']):,} required.")

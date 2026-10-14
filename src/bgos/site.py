@@ -121,16 +121,17 @@ V.monday = function () {
   ${kpi('New activations (7d)', fmt(t.new_activations_7d))}${kpi('Complete submissions (7d)', fmt(t.complete_submissions_7d), (t.complete_submissions_7d - t.complete_submissions_prev_7d >= 0 ? '+' : '') + (t.complete_submissions_7d - t.complete_submissions_prev_7d) + ' vs prior 7d')}
   ${kpi('Active agencies (60d)', fmt(t.active_agencies_60d))}${kpi('Dormant agencies', fmt(t.dormant_agencies))}
   ${kpi('Commission, last 90d', money(t.commission_last_90d))}${kpi('Bound premium, last 90d', money(t.bound_premium_last_90d))}</div>
-  <div class="ctl">${seg('fm', [['step', '% of previous stage'], ['cum', '% of raw leads']], 'step')}</div><div id="fig-funnel"></div>${take(D.takeaways.funnel)}
-  <p class="small">The synthetic funnel is deliberately generous so Experiment A can be statistically powered; real conversion rates will be lower.</p>
-  <h3>Work first this week: highest-fit accounts that are not yet submitting</h3>
+  <div class="ctl">${seg('fm', [['step', 'Mature % of previous stage'], ['cum', 'Mature % of raw leads'], ['obs', 'Observed % of raw leads (understates)']], 'step')}</div><div id="fig-funnel"></div>${take(D.takeaways.funnel)}
+  <p class="small">Mature rates measure each step only on agencies that reached the previous stage long enough ago to have converted (windows set from the observed lags). The synthetic funnel is deliberately generous so Experiment A can be statistically powered; real conversion rates will be lower.</p>
+  <h3>Work first this week: highest-fit prospects that are not yet submitting</h3>
   <div class="ctl"><label>Accounts <input type="range" id="nn" min="3" max="25" value="8"> <b id="nv">8</b></label></div><div id="tb"></div>`;
+  const lab = (r, m) => m === 'step' ? r.mature_step_conversion : m === 'cum' ? r.mature_cumulative_conversion : r.observed_cumulative_conversion;
   const draw = m => plot('fig-funnel', [{type: 'bar', orientation: 'h', y: f.map(r => stageName(r.stage)), x: f.map(r => r.agencies),
     marker: {color: f.map((r, i) => i), colorscale: [[0, C.blue], [1, C.green]]},
-    text: f.map(r => fmt(r.agencies) + (m === 'step' ? (r.step_conversion == null ? '' : '  (' + pct(r.step_conversion, 0) + ')') : '  (' + pct(r.cumulative_conversion, 0) + ')')), textposition: 'auto',
+    text: f.map(r => fmt(r.agencies) + (lab(r, m) == null ? '' : '  (' + pct(lab(r, m), 0) + ')')), textposition: 'auto',
     hovertemplate: '%{y}: %{x} agencies<extra></extra>'}], lay(360, {yaxis: {autorange: 'reversed'}, margin: {l: 150, r: 12, t: 10, b: 30}}));
   draw('step'); onSeg('fm', draw);
-  const rows = () => D.ranked.filter(r => (r.tier === 'Tier 1' || r.tier === 'Tier 2') && (r.action === 'outbound' || r.action === 'onboarding'))
+  const rows = () => D.ranked.filter(r => (r.tier === 'Tier 1' || r.tier === 'Tier 2'))
     .sort((a, b) => (a.tier < b.tier ? -1 : a.tier > b.tier ? 1 : b.score - a.score));
   const cols = [{k: 'name', l: 'Agency'}, {k: 'score', l: 'Score', f: v => v.toFixed(2)}, {k: 'tier', l: 'Tier'}, {k: 'next_action', l: 'Next action'}, {k: 'owner', l: 'Owner'}, {k: 'channel', l: 'Channel'}];
   const tb = () => { $('#nv').textContent = $('#nn').value; $('#tb').innerHTML = table(rows().slice(0, +$('#nn').value), cols); };
@@ -218,8 +219,8 @@ V.dormant = function () {
 
 V.pipeline = function () {
   const p = D.pipeline;
-  view.innerHTML = `<h2>Pipeline and Revenue Projection by Segment</h2><details class="card"><summary>Assumptions behind this projection</summary><ul><li>Open pipeline = agencies whose highest stage is ICP, engaged, first submission or quoted with activity in the last ${D.meta.open_days} days.</li>
-  <li>Each converts at its segment's observed P(bound | stage reached); the overall rate is used when a segment has fewer than ${D.meta.min_n} agencies at that stage.</li><li>Revenue per bound agency = observed average first-bind commission. Repeat revenue is excluded. A projection from synthetic rates, not a forecast.</li></ul></details>
+  view.innerHTML = `<h2>Pipeline and Revenue Projection by Segment</h2><details class="card"><summary>Assumptions behind this projection</summary><ul><li>Open (pending) pipeline = agencies whose highest stage is ICP, engaged, first submission or quoted and that reached it within the maturity window of the next step; older ones are treated as lost.</li>
+  <li>Each converts at the product of its segment's remaining cohort-mature step rates; the overall rate is used when a segment has fewer than ${D.meta.min_n} agencies at that stage.</li><li>Revenue per bound agency = observed average first-bind commission. Repeat revenue is excluded. A projection from synthetic rates, not a forecast.</li></ul></details>
   <div class="ctl">${p.map(r => `<label><input type="checkbox" class="sg" value="${esc(r.segment)}" checked> ${esc(r.segment)}</label>`).join('')}</div><div class="kpis" id="pk"></div>
   <div id="fig-pipe"></div><div id="fig-pcom"></div>${take(D.takeaways.pipeline)}<div id="tb"></div>`;
   const draw = () => { const on = [...document.querySelectorAll('.sg')].filter(c => c.checked).map(c => c.value), s = p.filter(r => on.includes(r.segment)).sort((a, b) => a.projected_commission - b.projected_commission);
@@ -233,15 +234,18 @@ V.pipeline = function () {
 };
 
 V.ranked = function () {
-  const r0 = D.ranked, owners = [...new Set(r0.map(r => r.owner))].sort(), states = [...new Set(r0.map(r => r.state))].sort(), tiers = ['Tier 1', 'Tier 2', 'Reactivation', 'Tier 3'];
+  const r0 = D.ranked, owners = [...new Set(r0.map(r => r.owner))].sort(), states = [...new Set(r0.map(r => r.state))].sort(), tiers = ['Tier 1', 'Tier 2', 'Tier 3', 'Active', 'Reactivation'];
   view.innerHTML = `<h2>Ranked Accounts</h2><div id="fig-tier"></div>${take(D.takeaways.ranked)}
+  <div class="card"><b>Out-of-sample check.</b> Prospects scored ${D.holdout[0].window_days} days before the as-of date (${D.holdout[0].scored_as_of}) using only data available then; first submissions counted in the following ${D.holdout[0].window_days} days.
+  ${table(D.holdout, [{k: 'tier', l: 'Tier'}, {k: 'prospects', l: 'Prospects'}, {k: 'converted', l: 'Converted'}, {k: 'rate', l: 'Conversion', f: v => v == null ? 'suppressed (n small)' : pct(v)}])}
+  <p class="small">Tiers 1-3 contain prospects only; customers are Active or Reactivation. Engagement counts opens, clicks, replies and meetings, never submissions. On synthetic data this checks plumbing, not real predictive power.</p></div>
   <p class="small">Score = 0.30 specialty fit + 0.25 commercial volume + 0.20 E&amp;S activity + 0.15 engagement + 0.10 geographic priority. Every reason names the top two drivers.</p>
-  <div class="ctl">${tiers.map((t, i) => `<label><input type="checkbox" class="tr" value="${t}" ${i < 3 ? 'checked' : ''}> ${t}</label>`).join('')}</div>
+  <div class="ctl">${tiers.map((t, i) => `<label><input type="checkbox" class="tr" value="${t}" ${i < 2 ? 'checked' : ''}> ${t}</label>`).join('')}</div>
   <div class="ctl"><label>Owner <select id="ow"><option value="">All</option>${owners.map(o => `<option>${esc(o)}</option>`).join('')}</select></label><label>State <select id="stt"><option value="">All</option>${states.map(o => `<option>${o}</option>`).join('')}</select></label>
   <label>Min score <input type="range" id="ms" min="0" max="1" step="0.05" value="0"> <b id="mv">0.00</b></label><input type="search" id="q" placeholder="Search name" aria-label="Search name"><button class="btn" id="dl" type="button">Download CSV</button></div>
   <div id="cnt" class="small"></div><div id="tb"></div><div class="pg"><button class="btn" id="pv" type="button">Previous</button><span id="pn"></span><button class="btn" id="nx" type="button">Next</button></div>`;
   const vc = tiers.map(t => r0.filter(r => r.tier === t).length);
-  plot('fig-tier', [{type: 'bar', x: tiers, y: vc, marker: {color: [C.green, C.blue, C.teal, C.muted]}, text: vc, textposition: 'outside'}], lay(240));
+  plot('fig-tier', [{type: 'bar', x: tiers, y: vc, marker: {color: [C.green, C.blue, C.muted, C.teal, C.sky]}, text: vc, textposition: 'outside'}], lay(240));
   const cols = [{k: 'name', l: 'Agency'}, {k: 'score', l: 'Score', f: v => v.toFixed(2)}, {k: 'tier', l: 'Tier'}, {k: 'next_action', l: 'Next action'}, {k: 'owner', l: 'Owner'}, {k: 'channel', l: 'Channel'}, {k: 'reason', l: 'Reason'}];
   let page = 0; const PS = 20;
   const sel = () => { const on = [...document.querySelectorAll('.tr')].filter(c => c.checked).map(c => c.value), q = $('#q').value.toLowerCase();
@@ -265,8 +269,8 @@ V.experiments = function () {
   <div><label for="c-alpha">Alpha</label><select id="c-alpha"><option value="1.6449">0.10</option><option value="1.96" selected>0.05</option><option value="2.5758">0.01</option></select></div>
   <div><label for="c-power">Power</label><select id="c-power"><option value="0.8416" selected>80%</option><option value="1.2816">90%</option><option value="1.6449">95%</option></select></div></div>
   <p>Required per arm: <span class="result" id="o-n" aria-live="polite"></span> &nbsp; Total: <b id="o-tot"></b></p></div>`;
-  const card = id => { const r = e.find(x => x.id === id); $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p = ${r.p_value.toFixed(3)}.</p>
-    <div class="bar"><span style="width:${Math.min(100, 100 * Math.min(r.n_control, r.n_treatment) / r.n_required)}%"></span></div><p class="small">Sample: ${fmt(Math.min(r.n_control, r.n_treatment))} per arm of ${fmt(r.n_required)} required. Achieved power ${pct(r.power, 0)}. Planted truth: ${(r.planted * 100).toFixed(0)}%. Simulated.</p>${take(r.take)}</div>`; };
+  const card = id => { const r = e.find(x => x.id === id); $('#ecard').innerHTML = `<div class="card"><h3>${esc(r.name)} ${badge(r.decision)}</h3><p>Control ${pct(r.rate_control)} &rarr; treatment ${pct(r.rate_treatment)}; relative lift <b>${(r.rel_lift * 100).toFixed(1)}%</b> (95% CI ${(r.ci_low * 100).toFixed(1)}% to ${(r.ci_high * 100).toFixed(1)}%), p ${r.p_value < 0.001 ? '< 0.001' : '= ' + r.p_value.toFixed(3)}.</p>
+    <div class="bar"><span style="width:${Math.min(100, 100 * Math.min(r.n_control, r.n_treatment) / r.n_required)}%"></span></div><p class="small">Sample: ${fmt(Math.min(r.n_control, r.n_treatment))} per arm of ${fmt(r.n_required)} required. Power at the pre-registered ${(r.mde * 100).toFixed(0)}% lift: ${pct(r.power, 0)}.${r.ci_clears ? '' : ' The lower CI bound (' + (r.ci_low * 100).toFixed(1) + '%) is below the ' + (r.mde * 100).toFixed(0) + '% ship threshold; the rule ships on the point estimate (winner\'s-curse risk).'} Planted truth: ${(r.planted * 100).toFixed(0)}%. Simulated.</p>${take(r.take)}</div>`; };
   card(e[0].id); onSeg('et', card);
   const labs = e.map(r => r.id + ': ' + r.name + ' (' + r.decision + ')');
   plot('fig-exp', e.map((r, i) => ({type: 'scatter', mode: 'markers', x: [r.rel_lift * 100], y: [labs[i]], showlegend: false, marker: {size: 11, color: C.blue}, error_x: {type: 'data', symmetric: false, array: [(r.ci_high - r.rel_lift) * 100], arrayminus: [(r.rel_lift - r.ci_low) * 100], color: C.blue}, hovertemplate: labs[i] + '<br>lift %{x:.1f}%<extra></extra>'}))
@@ -304,17 +308,17 @@ def build_data(root: Path | str | None = None) -> dict:
     for _, r in ex.iterrows():
         exps.append(dict(id=r.experiment_id, name=r["name"], decision=r.decision, rate_control=r.rate_control, rate_treatment=r.rate_treatment, rel_lift=r.rel_lift,
                          ci_low=r.rel_ci_low, ci_high=r.rel_ci_high, p_value=r.p_value, n_control=int(r.n_control), n_treatment=int(r.n_treatment),
-                         n_required=int(r.n_required_per_arm), power=r.achieved_power, planted=r.planted_true_lift, take=ins.takeaway_experiment(r)))
+                         n_required=int(r.n_required_per_arm), power=r.power_at_mde, mde=r.mde_relative, ci_clears=bool(r.ci_low_clears_ship), planted=r.planted_true_lift, take=ins.takeaway_experiment(r)))
     note = ("Each result below is one simulated draw. Running three experiments at once carries a multiple comparisons risk; no alpha adjustment is applied. "
             f"Across {sweep['n_seeds']} simulated seeds: A ships in {sweep['A']['decisions'].get('SHIP', 0)}, B in {sweep['B']['decisions'].get('SHIP', 0)}, "
             f"and C looks significant by chance in {sweep['C']['significant_p_lt_0.05']}.")
     return {
-        "meta": {"min_n": config.MIN_N, "open_days": config.PIPELINE_OPEN_DAYS, "exp_note": note},
+        "meta": {"min_n": config.MIN_N, "exp_note": note},
         "stage_names": {k: v.name for k, v in STAGE_BY_KEY.items()},
         "topline": _records(tl)[0], "funnel": _records(f), "sources": _records(sq), "weekly": _records(wk), "ttq": _records(ttq),
         "activation": _records(act), "cohorts": _records(coh), "dormant": _records(dor), "pipeline": _records(pp),
         "ranked": _records(ranked, ["name", "score", "tier", "next_action", "owner", "channel", "reason", "state", "action"]),
-        "experiments": exps, "sweep": sweep,
+        "experiments": exps, "sweep": sweep, "holdout": _records(pd.read_csv(paths.marts / "tier_holdout.csv")),
         "takeaways": {"funnel": ins.takeaway_funnel(f), "north_star": ins.takeaway_north_star(wk), "sources": ins.takeaway_sources(sq), "ttq": ins.takeaway_ttq(ttq),
                       "activation": ins.takeaway_activation(act, coh), "dormant": ins.takeaway_dormant(dor), "pipeline": ins.takeaway_pipeline(pp), "ranked": ins.takeaway_ranked(ranked)},
     }
@@ -332,9 +336,9 @@ def build_site(root: Path | str | None = None) -> str:
     data = build_data(root)
     facts = docs.memo_facts(root)
     f = pd.read_csv(paths.marts / "funnel_counts.csv").set_index("stage")
-    kp = [("Raw leads", facts["raw"]), ("ICP-qualified", facts["icp"]), ("Engaged", facts["engaged"]), ("First submissions", facts["first_sub"]),
-          ("Bound", f"{facts['bound']} ({facts['bound_pct']})")]
-    kpis = "".join(f"<div class='kpi'><div class='v'>{v}</div><div class='l'>{k}</div></div>" for k, v in kp)
+    kp = [("Raw leads", facts["raw"], ""), ("ICP-qualified", facts["icp"], ""), ("Engaged", facts["engaged"], ""), ("First submissions", facts["first_sub"], ""),
+          ("Bound", facts["bound"], f"{facts['bound_pct']} of mature leads ({facts['bound_obs_pct']} raw)")]
+    kpis = "".join(f"<div class='kpi'><div class='v'>{v}</div><div class='l'>{k}</div>" + (f"<div class='d'>{d}</div>" if d else "") + "</div>" for k, v, d in kp)
     payload = json.dumps(data, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
     body = f"""<a class="skip" href="#view">Skip to dashboard</a>
 <header class="top"><div class="in"><div><h1>Broker Growth OS</h1><p>Interactive growth dashboard: funnel, fit scoring, metrics and experiments for a specialty insurance wholesaler.</p></div>

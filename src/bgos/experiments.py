@@ -37,17 +37,23 @@ class ExperimentConfig:
     force_iterate_if_not_ship: bool = False  # Experiment A: "otherwise ITERATE the ICP definition"
     power: float = 0.80
 
+    def __post_init__(self):
+        # Size the test for the SMALLEST effect we would act on. Sizing for a bigger effect than the ship threshold
+        # (the original A: sized for +30%, shipped at +20%) makes "sample size reached" misleading (audit B-19).
+        if abs(self.mde_relative - self.ship_min_relative_lift) > 1e-12:
+            raise ValueError(f"{self.experiment_id}: mde_relative must equal ship_min_relative_lift")
+
 
 EXPERIMENTS: dict[str, ExperimentConfig] = {
     "A": ExperimentConfig(
         "A", "ICP-targeted outbound",
-        "Targeting outbound by ICP fit and specialty lifts first-submission conversion by at least 20% relative.",
+        "The ICP-targeted v2 outbound sequence lifts first-submission conversion by at least 20% relative versus the standard v1 sequence (all agencies are enrolled in one or the other; non-ICP agencies dilute the effect).",
         "Standard v1 outbound sequence", "ICP-Targeted v2 outbound sequence",
         f"first complete submission within {config.A_OUTCOME_DAYS} days of first touch",
         ("engaged rate", "quote rate of submitters", "bind rate per lead"),
-        config.EXPERIMENT_ALPHA, 0.30, 0.20,
+        config.EXPERIMENT_ALPHA, 0.20, 0.20,
         "SHIP only if relative lift >= 20% AND p < alpha AND required sample size reached; otherwise ITERATE the ICP definition.",
-        "All agencies, randomized 50/50 at first touch; only units with a full follow-up window are analyzed.",
+        "All enrolled agencies, randomized 50/50 (stratified) at first touch; only units with a full follow-up window are analyzed. Sized for the 20% ship threshold, not for the planted effect.",
         force_iterate_if_not_ship=True),
     "B": ExperimentConfig(
         "B", "Submission-ready onboarding",
@@ -55,7 +61,7 @@ EXPERIMENTS: dict[str, ExperimentConfig] = {
         "Standard onboarding", "Submission-ready onboarding",
         f"complete submission within {config.B_OUTCOME_DAYS} days of engagement",
         ("share of first submissions that are complete", "median time to first submission"),
-        config.EXPERIMENT_ALPHA, 0.15, 0.10,
+        config.EXPERIMENT_ALPHA, 0.10, 0.10,
         "SHIP if relative lift >= 10% AND p < alpha AND required sample reached; ITERATE if significant but small, or powered null; INCONCLUSIVE if underpowered and not significant.",
         "Engaged ICP agencies, randomized 50/50 at engagement."),
     "C": ExperimentConfig(
@@ -64,7 +70,7 @@ EXPERIMENTS: dict[str, ExperimentConfig] = {
         "No-outreach holdout", "Reactivation outreach sequence",
         f"complete submission within {config.C_OUTCOME_DAYS} days after the reactivation date",
         ("reply rate", "meeting rate"),
-        config.EXPERIMENT_ALPHA, 0.50, 0.25,
+        config.EXPERIMENT_ALPHA, 0.25, 0.25,
         "SHIP if relative lift >= 25% AND p < alpha AND required sample reached; ITERATE if significant but small, or powered null; INCONCLUSIVE if underpowered and not significant.",
         f"Agencies with a complete submission and none in the {config.DORMANCY_DAYS} days before {config.REACTIVATION_T0}; 50/50 vs holdout."),
 }
@@ -73,6 +79,11 @@ EXPERIMENTS: dict[str, ExperimentConfig] = {
 # ----------------------------------------------------------------------------------------------
 # statistics
 # ----------------------------------------------------------------------------------------------
+def fmt_p(p: float) -> str:
+    """p-value for display: never print 0.000."""
+    return "< 0.001" if p < 0.001 else f"= {p:.3f}"
+
+
 def sample_size_two_proportions(p1: float, p2: float, alpha: float = 0.05, power: float = 0.80) -> int:
     """Per-arm n for a two-sided two-proportion z-test (pooled variance under H0), rounded up."""
     if not (0 < p1 < 1 and 0 < p2 < 1) or p1 == p2:
@@ -188,7 +199,8 @@ class ExperimentResult:
     mde_relative: float
     n_required_per_arm: int
     sample_size_reached: bool
-    achieved_power: float
+    power_at_mde: float
+    ci_low_clears_ship: bool
     srm_p_value: float
     srm_flag: bool
     decision: str
@@ -210,15 +222,16 @@ def analyze_experiment(outcomes: pd.DataFrame, cfg: ExperimentConfig) -> Experim
     target = min(0.99, p1 * (1 + cfg.mde_relative))
     n_req = sample_size_two_proportions(p1, target, cfg.alpha, cfg.power) if 0 < p1 < 1 else 10 ** 9
     reached = is_sample_size_reached(n1, n2, n_req)
-    power = achieved_power(p1, p2, n1, n2, cfg.alpha)
+    power = achieved_power(p1, target, n1, n2, cfg.alpha)  # power at the PRE-REGISTERED effect (not post-hoc power)
     decision = decide(rel_lift=ci["rel_lift"], p_value=p, sample_size_reached=reached, srm_flag=srm["flag"], cfg=cfg)
-    why = (f"rel lift {ci['rel_lift']:+.1%} (95% CI {ci['rel_ci_low']:+.1%} to {ci['rel_ci_high']:+.1%}), p={p:.4f}; "
-           f"n/arm {min(n1, n2)} vs {n_req} required for a {cfg.mde_relative:.0%} lift at baseline {p1:.1%}; "
+    why = (f"rel lift {ci['rel_lift']:+.1%} (95% CI {ci['rel_ci_low']:+.1%} to {ci['rel_ci_high']:+.1%}), p {fmt_p(p)}; "
+           f"n/arm {min(n1, n2)} vs {n_req} required for a {cfg.mde_relative:.0%} lift at baseline {p1:.1%} (power at that lift {power:.0%}); "
+           f"{'lower CI bound clears' if ci['rel_ci_low'] >= cfg.ship_min_relative_lift else 'NOTE: lower CI bound is below'} the {cfg.ship_min_relative_lift:.0%} ship threshold (the rule uses the point estimate; winner's-curse risk); "
            f"SRM {'FLAGGED' if srm['flag'] else 'ok'}.")
     return ExperimentResult(
         cfg.experiment_id, cfg.name, int(assigned["control"]), int(assigned["treatment"]), n1, n2, x1, x2, p1, p2,
         ci["abs_lift"], ci["abs_ci_low"], ci["abs_ci_high"], ci["rel_lift"], ci["rel_ci_low"], ci["rel_ci_high"],
-        z, p, cfg.alpha, cfg.mde_relative, int(n_req), bool(reached), power, srm["p_value"], srm["flag"], decision, why)
+        z, p, cfg.alpha, cfg.mde_relative, int(n_req), bool(reached), power, bool(ci["rel_ci_low"] >= cfg.ship_min_relative_lift), srm["p_value"], srm["flag"], decision, why)
 
 
 def run_experiments(root: Path | str | None = None) -> pd.DataFrame:
@@ -258,8 +271,8 @@ def write_report(df: pd.DataFrame, path: Path) -> None:
                   f"- Control {r['x_control']}/{r['n_control']} = {r['rate_control']:.1%}; "
                   f"Treatment {r['x_treatment']}/{r['n_treatment']} = {r['rate_treatment']:.1%}",
                   f"- Relative lift {r['rel_lift']:+.1%} (95% CI {r['rel_ci_low']:+.1%} to {r['rel_ci_high']:+.1%}); "
-                  f"p = {r['p_value']:.4f}; planted truth {r['planted_true_lift']:+.0%}",
+                  f"p {fmt_p(r['p_value'])}; planted truth {r['planted_true_lift']:+.0%}",
                   f"- Sample: {min(r['n_control'], r['n_treatment'])} per arm vs {r['n_required_per_arm']} required "
-                  f"(reached: {r['sample_size_reached']}); achieved power {r['achieved_power']:.0%}; SRM p = {r['srm_p_value']:.3f}",
+                  f"(reached: {r['sample_size_reached']}); power at the pre-registered {EXPERIMENTS[r['experiment_id']].mde_relative:.0%} lift {r['power_at_mde']:.0%}; lower CI bound clears the ship threshold: {r['ci_low_clears_ship']}; SRM p = {r['srm_p_value']:.3f}",
                   f"- **Decision: {r['decision']}** (simulated)", ""]
     path.write_text("\n".join(lines))

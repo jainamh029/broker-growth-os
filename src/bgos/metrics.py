@@ -25,12 +25,12 @@ class Metric:
 
 REGISTRY: dict[str, Metric] = {m.name: m for m in [
     Metric("new_icp_agencies_weekly", "new_icp_agencies_weekly.sql", "New ICP-qualified agencies entering per week"),
-    Metric("funnel_counts", "funnel_counts.sql", "Nested funnel counts, step and cumulative conversion",
-           ("step_conversion",)),
+    Metric("funnel_counts", "funnel_counts.sql", "Nested funnel counts; observed and cohort-mature step/cumulative conversion",
+           ("observed_step_conversion", "mature_window_days", "mature_base", "mature_converted", "mature_step_conversion", "mature_cumulative_conversion")),
     Metric("meeting_funnel", "meeting_funnel.sql", "Meeting diagnostic: engaged -> meeting -> submission",
            ("meeting_to_submission_rate", "engaged_to_meeting_rate", "no_meeting_to_submission_rate")),
     Metric("source_quality", "source_quality.sql", "Source quality by downstream bind/repeat, min-n suppressed",
-           ("first_submission_rate", "bind_rate_per_lead", "repeat_rate_of_bound", "commission_per_lead")),
+           ("first_submission_rate", "bind_rate_per_lead", "repeat_rate_of_bound", "commission_per_lead", "observed_bind_rate", "mature_min_base")),
     Metric("time_to_quote", "time_to_quote.sql", "Median hours submission -> quote, overall/line/complexity",
            ("median_hours",)),
     Metric("dormant_reactivation", "dormant_reactivation.sql", "Dormant agencies ranked by prior premium and fit"),
@@ -53,7 +53,10 @@ def default_params(**overrides) -> dict:
         as_of=config.AS_OF.isoformat(), window_start=config.WINDOW_START.isoformat(),
         min_n=config.MIN_N, min_n_weekly=config.MIN_N_WEEKLY, dormancy_days=config.DORMANCY_DAYS,
         open_days=config.PIPELINE_OPEN_DAYS, activation_days=config.ACTIVATION_DAYS,
-        window_a=config.A_OUTCOME_DAYS, window_b=config.B_OUTCOME_DAYS, window_c=config.C_OUTCOME_DAYS)
+        window_a=config.A_OUTCOME_DAYS,
+        mat_eng=config.STAGE_MATURITY_DAYS["engaged"], mat_fs=config.STAGE_MATURITY_DAYS["first_submission"],
+        mat_q=config.STAGE_MATURITY_DAYS["quoted"], mat_b=config.STAGE_MATURITY_DAYS["bound"], mat_r=config.STAGE_MATURITY_DAYS["repeat_submission"],
+        window_b=config.B_OUTCOME_DAYS, window_c=config.C_OUTCOME_DAYS)
     p.update(overrides)
     return p
 

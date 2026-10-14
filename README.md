@@ -63,14 +63,15 @@ The full log is [DECISIONS.md](DECISIONS.md). The ones worth knowing:
 - **Funnel as code, strictly nested.** Activity from agencies that skip stages is reported as out-of-funnel, never silently dropped.
 - **Every metric is a SQL file** and each is cross-checked in tests against an independent pandas computation.
 - **No vanity metrics.** Sends and LinkedIn connections never appear as results; source quality is judged by bind and repeat, and tiny-n sources (n < 20) are suppressed.
-- **Transparent scoring.** Five weighted components, each in [0, 1], with a reason string naming the top two drivers.
+- **Transparent, leak-free scoring.** Five weighted components, each in [0, 1], with a reason string naming the top two drivers. Engagement uses opens, clicks, replies and meetings only (never submissions), tiers 1-3 contain prospects only (customers are Active or Reactivation), and the tier check scores prospects 90 days earlier using only data available then.
+- **Cohort-mature funnel.** Conversion steps are measured only on agencies old enough to have converted; observed (immature) rates are shown beside them because they understate.
 - **Experiments can say no.** Sample size is recomputed from the observed baseline; underpowered wins return ITERATE/INCONCLUSIVE, not SHIP. Arms are assigned with stratified randomization and an SRM check guards assignment.
 - **AI is human-in-the-loop.** Deterministic mock by default; optional real provider only if `ANTHROPIC_API_KEY` and `BGOS_LLM_MODEL` are set. Drafts always require review and the codebase contains no send function (a test greps for one).
 - **Honest about plumbing checks.** The Tier 1 > Tier 2 > Tier 3 first-submission ordering validates the pipeline only: the generator makes conversion depend on fit, so it is not evidence of predictive power.
 
 ## Known limits
 
-- The data is synthetic and the funnel is deliberately generous (about a third of raw leads reach a first submission) so that Experiment A is statistically powered with about 1,500 agencies. Real baselines will be lower and need far larger samples; the sample-size calculator will say so.
+- The data is synthetic and the funnel is deliberately generous (about a third of raw leads reach a first submission). Experiment A is sized for its 20% ship threshold, which needs about 3,000 agencies (D41); real baselines will be lower and need far larger samples, and the sample-size calculator will say so.
 - Planted effects are plumbing tests, not findings. B (+15%) and C (null) are intentionally underpowered.
 - Every experiment result in this repo is one simulated draw of a design with imperfect power. `make sweep` re-runs 40 seeds and writes [docs/seed_sweep.json](docs/seed_sweep.json): A returns SHIP in most but not all seeds, B never ships, and C occasionally looks significant by chance.
 - Running three experiments at once carries a multiple comparisons risk (no alpha adjustment is applied). A real programme would pre-register one primary experiment.
