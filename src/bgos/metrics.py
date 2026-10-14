@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from .rounding import round_df
 
 
 @dataclass(frozen=True)
@@ -94,7 +95,7 @@ def run_all(root: Path | str | None = None) -> dict[str, pd.DataFrame]:
     try:
         for name in REGISTRY:
             df = run_metric(name, conn)
-            df.to_csv(paths.marts / f"{name}.csv", index=False)
+            round_df(df).to_csv(paths.marts / f"{name}.csv", index=False)
             out[name] = df
     finally:
         conn.close()

@@ -17,6 +17,8 @@ make dashboard   # open http://localhost:8501
 make test        # full regression suite
 ```
 
+Tested with Python 3.12 (3.12.2) and the exact versions pinned in `requirements.txt`. Floats written to marts and pages are rounded to 10 significant digits (`src/bgos/rounding.py`) so regenerations on other builds are byte-identical; the statistics themselves keep full precision.
+
 `make all` is deterministic (global seed 42 in [config.py](config.py)): two runs produce byte-identical files. Individual steps: `make data`, `make clean`, `make score`, `make metrics`, `make experiments`, `make ai-demo`, `make docs`. `make reset` deletes generated files. No API key and no network are needed for anything.
 
 ## What you get

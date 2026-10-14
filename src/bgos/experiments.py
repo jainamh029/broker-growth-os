@@ -15,6 +15,7 @@ import pandas as pd
 from scipy import stats
 
 import config
+from .rounding import round_df
 
 SIM_NOTE = "SIMULATED RESULT on synthetic data; demonstrates the method, not real performance."
 SHIP, ITERATE, INCONCLUSIVE = "SHIP", "ITERATE", "INCONCLUSIVE"
@@ -253,7 +254,7 @@ def run_experiments(root: Path | str | None = None) -> pd.DataFrame:
         res.planted_true_lift = truth.get(k, float("nan"))
         rows.append(asdict(res))
     df = pd.DataFrame(rows)
-    df.to_csv(paths.marts / "experiment_results.csv", index=False)
+    round_df(df).to_csv(paths.marts / "experiment_results.csv", index=False)
     write_report(df, paths.outputs / "experiment_results.md")
     return df
 

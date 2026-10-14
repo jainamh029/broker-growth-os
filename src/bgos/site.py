@@ -15,6 +15,7 @@ import pandas as pd
 
 import config
 from . import docs, insights as ins, theme
+from .rounding import round_obj
 from .funnel import STAGE_BY_KEY
 
 REPO = "https://github.com/jainamh029/broker-growth-os"
@@ -334,7 +335,7 @@ def _page(title: str, body: str, script: str = "", plotly: bool = False) -> str:
 def build_site(root: Path | str | None = None) -> str:
     """Home page = the interactive dashboard only (no memo). Data is embedded; charts render in the browser."""
     paths = config.get_paths(root)
-    data = build_data(root)
+    data = round_obj(build_data(root))
     facts = docs.memo_facts(root)
     f = pd.read_csv(paths.marts / "funnel_counts.csv").set_index("stage")
     kp = [("Raw leads", facts["raw"], ""), ("ICP-qualified", facts["icp"], ""), ("Engaged", facts["engaged"], ""), ("First submissions", facts["first_sub"], ""),

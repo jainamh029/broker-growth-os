@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from .rounding import round_df
 from . import funnel
 
 COMPONENTS = list(config.SCORING_WEIGHTS)
@@ -219,9 +220,9 @@ def run_score(root: Path | str | None = None) -> pd.DataFrame:
     tc = pd.read_csv(paths.clean / "touches.csv")
     sb = pd.read_csv(paths.clean / "submissions.csv")
     ranked = rank_accounts(score_agencies(ag, tc, sb, config.AS_OF))
-    holdout_conversion_by_tier(ag, tc, sb, config.AS_OF).to_csv(paths.marts / "tier_holdout.csv", index=False)
-    ranked.to_csv(paths.outputs / "ranked_accounts.csv", index=False)
-    ranked.to_csv(paths.marts / "ranked_accounts.csv", index=False)
+    round_df(holdout_conversion_by_tier(ag, tc, sb, config.AS_OF)).to_csv(paths.marts / "tier_holdout.csv", index=False)
+    round_df(ranked).to_csv(paths.outputs / "ranked_accounts.csv", index=False)
+    round_df(ranked).to_csv(paths.marts / "ranked_accounts.csv", index=False)
     conn = sqlite3.connect(paths.db)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("DELETE FROM ranked_accounts")
