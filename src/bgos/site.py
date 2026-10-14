@@ -81,6 +81,7 @@ td,th{padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top} t
 .calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px} .result{font-size:1.8rem;font-weight:700;color:var(--green)}
 a{color:var(--blue)} code{background:var(--surface);padding:1px 5px;border-radius:4px}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+footer .fp{font-size:.8rem;font-family:ui-monospace,Menlo,monospace}
 footer{border-top:1px solid var(--grid);padding:18px 20px;text-align:center;color:var(--muted);font-size:.9rem}
 .memo p,.memo li{max-width:820px} .memo .note{background:var(--surface);padding:8px 12px;border-radius:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -346,7 +347,7 @@ def build_site(root: Path | str | None = None) -> str:
 <nav aria-label="Dashboard views"><div class="in" id="tabs"></div></nav>
 <main><div class="banner" role="note"><b>{docs.DISCLAIMER}</b> Every number here comes from a generated synthetic dataset; experiment results are simulated. Use the controls on each view to filter and explore.</div>
 <div class="kpis" aria-label="Headline funnel numbers">{kpis}</div><div id="view"></div></main>
-<footer>Synthetic data. Experiment results are simulated and demonstrate the method only. &middot; <a href="memo.html">Strategy memo</a> &middot; <a href="{REPO}">Source code</a></footer>
+<footer>Synthetic data. Experiment results are simulated and demonstrate the method only. &middot; <a href="memo.html">Strategy memo</a> &middot; <a href="{REPO}">Source code</a><br><span class="fp" id="fingerprint">{docs.stamp(root)}</span></footer>
 <script id="data" type="application/json">{payload}</script>"""
     return _page("Broker Growth OS", body, f"<script>{JS}</script>", plotly=True)
 
@@ -361,7 +362,7 @@ def build_memo_page(root: Path | str | None = None) -> str:
 <div class="card memo">{memo}</div>
 <h3>More</h3><ul><li><a href="{REPO}/blob/main/README.md">README and quickstart</a></li><li><a href="{REPO}/blob/main/AUDIT_REPORT.md">Independent audit report</a></li>
 <li><a href="{REPO}/blob/main/DECISIONS.md">Decision log</a></li><li><a href="{REPO}/blob/main/DEPLOY.md">Run the Streamlit version locally or deploy it</a></li></ul></main>
-<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.</footer>"""
+<footer>Synthetic data. Demonstrates the method, not Hedge's actual performance.<br><span class="fp" id="fingerprint">{docs.stamp(root)}</span></footer>"""
     return _page("Strategy memo | Broker Growth OS", body)
 
 

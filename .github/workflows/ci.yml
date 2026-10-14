@@ -10,4 +10,6 @@ jobs:
           python-version: "3.12"
       - run: python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
       - run: make all
+      - name: Committed docs and pages must equal a fresh regeneration
+        run: git diff --exit-code -- docs STRATEGY_MEMO.md LOOM_SCRIPT.md DATA_DICTIONARY.md
       - run: make test

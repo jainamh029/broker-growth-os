@@ -16,3 +16,13 @@
 | A6 | Claims, disclaimers, send-code, multiple-comparisons greps | No real-Hedge claims; no send/network code; disclaimers present everywhere. Gaps fixed in B-06 and B-12. |
 | A7 | Fresh clone with no data: dashboard AppTest | Bootstraps and renders (now covered by a test). Extreme/empty filters covered by a test. Deprecated API fixed (B-04). |
 | A8 | Secret scan of whole git history (grep, gitleaks/trufflehog not installed), personal strings, file sizes | No secrets; no paths/hostnames in history; largest file 35 KB. Personal email in commit authorship (B-15, left as instructed). |
+
+## Final pass, Stage 1: deployment truth
+| Check | Result |
+|---|---|
+| `git branch -r` | Only `origin/main`. No `gh-pages` or other stale branch. |
+| Second memo copy? | `git ls-tree -r origin/main` shows only `STRATEGY_MEMO.md` (the markdown source) and `docs/memo.html` (the generated page); they are different files by design, and both were current. |
+| Pages config (`gh api repos/.../pages`) | `build_type: legacy`, source `main` `/docs`, status `built`. |
+| Latest build (`pages/builds/latest`) | status `built`, commit equals `origin/main` HEAD (247b31c), no error. |
+| Live fetch, two cache-busting strings, today | `memo.html` and `index.html` both serve the NEW numbers (3,000 leads, 21.7% mature) and have the same `last-modified`. The stale memo could not be reproduced. |
+| Conclusion | The repo and the Pages build were consistent. The most likely cause of the stale `memo.html` is a transient CDN edge inconsistency right after a build (`cache-control: max-age=600`, edge `x-cache: HIT`): the two files can be served from different cache generations for a few minutes. Not provable after the fact. Mitigations added: a data fingerprint in both page footers, a CI step that fails if committed pages differ from a regeneration, and `scripts/verify_live.py` which requires both live pages to carry the same fingerprint. |

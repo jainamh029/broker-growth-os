@@ -51,6 +51,27 @@ def build_data_dictionary() -> str:
 # ----------------------------------------------------------------------------------------------
 # FACTS (every number in the memo/loom comes from here)
 # ----------------------------------------------------------------------------------------------
+def data_fingerprint(root: Path | str | None = None) -> str:
+    """First 10 hex chars of SHA-256 over the sorted marts CSVs (names + bytes). Printed in the page footers so a stale deployed
+    page is visible; deliberately not the commit SHA (which would be circular)."""
+    import hashlib
+    h = hashlib.sha256()
+    for f in sorted(config.get_paths(root).marts.glob("*.csv")):
+        h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()[:10]
+
+
+def stamp(root: Path | str | None = None) -> str:
+    """Footer text: fingerprint, as-of date, seed and agency count."""
+    paths = config.get_paths(root)
+    seed = config.SEED
+    mp = paths.raw / "injected_defects.json"
+    if mp.exists():
+        seed = json.loads(mp.read_text()).get("seed", seed)
+    n = int(pd.read_csv(paths.marts / "topline.csv").iloc[0].agencies)
+    return f"Data fingerprint {data_fingerprint(root)} &middot; as of {config.AS_OF} &middot; seed {seed} &middot; {n:,} agencies"
+
+
 def _n(x) -> str:
     return f"{int(round(x)):,}"
 
